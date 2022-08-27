@@ -1,0 +1,123 @@
+#
+# biobliographic meta-data
+#
+
+# The dublin core is used for most of the bibliographic data, except
+# where it has been extended.
+
+namespace dc = "http://purl.org/dc/elements/1.1/"
+
+# The Dublin Core meta-data initiative is used as a container for
+# bibliographic meta-data. The 1.1 element set has been extended for
+# a a lack of precision to reliably format bibliographic entries
+# without extensive string manipulation (taking that bull by the
+# horns could be a very useful project). In the catalog I have
+# extended the meta-data to enhance both the content and the
+# precision.
+ 
+# Content extension is accomplished by creating tables such as
+# publisher, and biography where rich descriptions of the resources
+# can be maintained. The tables are organized by the xsl:key
+# facility for indexing elements. Where references are found to a
+# indexed element the Dublin Core content is synthesized from the
+# referenced element.
+
+# Presicion extension is accomplished by adding attributes to The
+# Dublin Core elements. This allows a higher level precision to be
+# acheived in the creation of bibliographic entries without
+# sophisticated string manipulation (which xsl has weak support for)
+# and hairy heuristic like control flow. A more template like
+# approach could hurdle the complexity here, but how to implement
+# such a thing has not occured to me.
+ 
+
+biblio_ep_credit = (
+  element first { text },
+  element middle { text }?,
+  element last { text }
+)
+
+biblio = (
+  # The title element is extended with a edition attribute to denote
+  # the edition of a document. Do not place the version of a program
+  # in the feild, editions and versions are very differant concepts.
+
+  element dc:Title { 
+    attribute edition { text }?,
+    text 
+  }? &
+
+  # The creator element has been extensively modified. 
+
+  element dc:Creator {
+
+    # for backwards compatiblity, and for unplanned scenarios CDATA
+    # can be dropped into the element and will be copied verbatim
+    # into the appropriate location.
+
+    text |
+
+    # for extended precision, and the preferred way to do non-team
+    # and non-bibliography credits, use the extended precision credits
+    # where there are the elements first, optionally middle, and last
+    # name elements. child elements are used in the case of creator
+    # instead of the norm, attributes so that a default xsl output
+    # of the element will generate reasonable content.
+
+    biblio_ep_credit |
+
+    # Where there is a bio attribute referancing a biography a empty
+    # element with the bio attribute only should be written. The
+    # content is entirely synthesized from the biography.
+
+    attribute bio { text } |
+
+    # Where the work is created by a team, there is often a credits
+    # webpage listing the team, and a team name. The url for the
+    # credits page is placed in the credits attribute, and the team
+    # name in the element content.
+
+    (attribute credits { text },
+     text)
+  }? &
+
+  element dc:Contributor { 
+    attribute bio { text } |
+    biblio_ep_credit |
+    text 
+  }* &
+
+  # the date of publication, for the title, particulary for the
+  # edition or version if that information is given.
+
+  # DEFECT: need to lock the format down.
+
+  element dc:Date { text }? &
+
+  # the publisher is either a imprint reference to a publisher
+  # element or a location, and a titular description of the
+  # publisher.
+
+  # DEFECT: internet publishers that operate from a web address only.
+
+  element dc:Publisher {
+    attribute imprint { text } |
+    (attribute location { text },
+     text)
+  }?
+)
+
+biography = element biography { 
+  attribute id { text },
+  attribute homepage { text }?,
+  biblio_ep_credit,
+  text
+}
+
+publisher = element publisher {
+  attribute imprint { text },
+  attribute website { text },
+  attribute location { text },
+  element title { text },
+  text
+}

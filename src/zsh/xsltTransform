@@ -1,0 +1,263 @@
+#----------------------------------------------------------------------
+#                      XSLT transform
+#
+# A module for advanced output of XSLT transformations. Two major
+# features are implemented in this module. First putting together the
+# headings and external peices such as CSS. Second post-transform
+# processing whereby grammars processed by external programs are fed
+# to a handler dispatch, re-intergrating their output back into the
+# output stream.
+#----------------------------------------------------------------------
+
+# Variables set by this function for module callee's to use: 
+# xslt_transform_file - the output path, and xslt_transform_dir - the
+# output directory.
+
+function xslt_transform_open {
+
+  # check for the file arguement
+
+  if (( $# < 1 )) ; then
+    [[ -o interactive ]] && {
+      cat 1>&2 <<EOF
+xslt_transform_open: <output file> [mode]
+
+Create a HTML header with the path <output file>. [mode] is the output
+format, currently the values: "xhtml" are supported. With the
+companion xslt_transform_close the <html> <head> and <body> tags are
+created in compliance with the appropriate standard. A beautifier is
+run when available as well when the document is finished. To use: call
+xslt_transform_open first to create the header, append cotnent, and
+then call xslt_transform_close to finish the document.
+
+Meta-data is handled by piping a table of key/value pairs into the
+xslt_transform_open function. Implemented keywords are listed in a
+table below:
+
+title <Title of the document>
+css <internal|external>
+stylesheet <path to CSS stylesheet>
+
+the title and stylesheet keywords are self-explanatory. The css
+keyword is a unique feature whereby all of the listed stylsheets will
+be processed recursively, and written either to a <style> element in
+the <head> for internal, or written to a single file for
+external. This feature also implements a extended @import directive
+which allows you to use environment variables when you specify local
+paths.
+
+here is an example: replace HERE-DOC with the appropriate here-doc
+                    syntax
+
+xslt_transform foo.html HERE-DOC
+title Review of The Programmer's Toolbox
+css internal
+stylesheet project-review.css
+HERE-DOC
+EOF
+      return 0;
+    }
+
+    print -u2 "xslt_transform_open: failed, no output file was specified"
+    exit ${internal_ERR:-0};
+  fi
+
+  # set the output paths based upon the required output file arguement 
+  xslt_transform_file="$1"; shift
+  if [[ "$arg_dbg" = "enabled" || "$arg_dump" = "enabled" ]] ; then
+    # use a alternate file to avoid working data damage while testing.
+    xslt_transform_file="${xslt_transform_file}.debug"
+
+    print -u2 \
+"xslt_transform_open: using alternate output file \"$xslt_transform_file\"";
+  fi
+
+  xslt_transform_dir=`dirname "$xslt_transform_file"`
+  mkdir -p $xslt_transform_dir || {
+    print -u2 \
+"xslt_transform_open: unable to create output directory \"$xslt_transform_dir\"";
+    return ${external_ERR:-1}
+  }
+
+  # read header data from stdin
+  local css_mode title
+  typeset -a css_files
+
+  local value line=1
+  while read value; do
+    [[ -z "$value" ]] && break;
+
+    local keyword=`expr match "$value" "[[:blank:]]*\([^[:blank:]]*\).*"`
+    (( $? > 0 )) && {
+      print -u2 "xslt_transform_open: error reading *keyword* on stdin,
+please examine line $line, and the help for using directives"
+      return ${external_ERR:-1}
+    }
+
+    value=`expr match "$value" "[[:blank:]]*[^[:blank:]]*[[:blank:]]*\(.*\)$"`
+    [[ -z "$value" ]] && {
+      print -u2 "xslt_transform_open: error reading *value* on stdin,
+please examine line $line, and the help for using directives"
+      return ${external_ERR:-1}
+    }
+
+    case $keyword in
+    css)
+      case $value in
+      internal);;
+      external);;
+      *)
+        echo 1>&2 <<EOF 
+xslt_transform_open: css keyword on line $line requires one of two values, 
+internal or external.
+EOF
+        return ${external_ERR:-1}
+      ;;
+      esac
+      css_mode=$value
+    ;;
+    title) title="$value";;
+    stylesheet) css_files[$(( ${#css_files} + 1 ))]="\"$value\"";;
+    *)
+      print -u2 \
+"xslt_transform_open: uncrecognized keyword \"$keyword\" on line $line."
+      return ${external_ERR:-1}
+    ;;
+    esac
+
+    line=$((line + 1))
+  done
+
+  case ${1:-xhtml} in
+  "xhtml") 
+    cat >|"$xslt_transform_file" <<EOF 
+<?xml version="1.0"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+EOF
+  ;;
+  *)
+   print -u2 "xslt_transform_open: error - uknown mode \"$1\""
+   return ${external_ERR:-1}
+  ;;
+  esac
+
+  # write-out the html header
+  cat >>"$xslt_transform_file" <<EOF 
+  <head>
+    <meta http-equiv="Content-Style-Type" content="text/css"/>
+    <title>$title</title>
+EOF
+
+  # handle the cascading style sheets
+  eval dump_css $css_mode $css_files
+
+  # close the header, open the body
+  cat >>"$xslt_transform_file" <<EOF 
+  </head>
+<body>
+EOF
+
+  return 0;
+}
+
+function xslt_transform (
+  ERRNO="0";
+
+#  function TRAPDEBUG {
+#    (( ERRNO == POSIX_EINTR )) && { ERRNO=0 };
+
+#    if [[ "$ERRNO" != 0 ]] ; then
+#      print -u2 "tool error: system error code \"$ERRNO\" received in xslt_transform transform value is \"$transform\""
+#      coproc_dump "xslt_transform TRAPDEBUG"
+#      exit $external_ERR;
+#    fi;
+#  }
+
+  # this cat is a fix, because the read builtin is stripping whitespace as apart
+  # of it's splitting, killing my formatting. very fucking annoying. Nor does
+  # -e|-E preserve the original input line. This may make a shell based dispatch
+  # impossible.
+
+  cat <&$fd_rd >>"$xslt_transform_file";
+)
+
+function xslt_transform_close {
+  echo '</body></html>' >>"$xslt_transform_file"
+
+  # humanize output with tidy when avaiable, very important for
+  # readability, particularly for debugging.
+
+  if which tidy >/dev/null 2>&1 ; then
+    local tidy_debug="2>/dev/null";
+    [[ "$arg_dbg" = "enabled" ]] && tidy_debug="2>${TMPDIR}tidy-stderr";
+
+    eval tidy $tidy_debug -i -m \"$xslt_transform_file\"
+  fi
+
+  return 0;
+} 
+
+function dump_css {
+  local ofile mode=$1 ; shift
+  
+  case $mode in
+  internal) 
+    ofile="$xslt_transform_file"
+    echo >>"$ofile" '<style>'
+  ;;
+  external) 
+    ofile="${xslt_transform_file%.*}.css" ; : >|"$ofile"
+    echo >>"$xslt_transform_file" \
+"<link href=\"$(basename "$ofile")\" type=\"text/css\" rel=\"stylesheet\"/>"
+  ;;
+  esac
+
+  (
+    for file in $* ; do
+      collapse_css "$file" || return $?;
+    done
+  ) >>"$ofile"
+
+  [[ $mode = internal ]] && echo >>"$ofile" '</style>';
+
+  return 0;
+}
+
+function collapse_css {
+  # dirstack implements relativity to referencing file
+  pushd >/dev/null 2>&1 `dirname $1` 
+
+  [[ -e "$1" ]] || {
+    print -u2 "collapse_css: error - css file \"$1\" not found"
+    return ${external_ERR:-1}
+  }
+
+  local line file
+  while read line; do
+    # filter out all of the import directives
+    file=`expr match "$line" "[[:blank:]]*@import[[:blank:]]*url(\(.*\)).*"`
+    (( $? == 0 )) && {
+
+      # only process as a file when it is not prefixed as a remote
+      # protocol
+      expr match "$file" "[[:alnum:]]:.*" >/dev/null 2>&1 || {
+        eval collapse_css \"$file\" || return $?
+        continue;
+      }
+    }
+    
+    print - "$line" # print all non-import and remote import lines
+  done <"$1"
+
+  popd >/dev/null 2>&1;
+  return 0;
+}
+
+function xsltTransform {
+  [[ -o interactive ]] && {
+    print -u2 "loaded The programmer's Toolbox xsltTransform module."
+  }
+
+  return 0;
+}

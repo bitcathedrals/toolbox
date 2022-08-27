@@ -1,0 +1,576 @@
+<?xml version="1.0"?>
+<!DOCTYPE toolbox SYSTEM "toolbox.dtd" [
+<!ENTITY tbox_abs "$HOME/toolbox/">
+<!ENTITY tbox_arch "archive/">
+<!ENTITY tbox_rel "expanded/">
+<!ENTITY tbox_sec "expanded/sections/">
+]>
+<toolbox>
+<package distribution="debian">
+<main>gv xchm sed </main>
+</package>
+
+<section name="languages">
+  <section name="shell">
+
+  <document name="Advanced Bash Scripting Guide" archive="archive/languages/shell/abs-guide-2.6.tar.bz2" expanded="sec//languages/shell/abs-guide-2.6/index.html">
+    The best document I have seen on shell syntax, and
+    programming. Examples are sprinkled throughout and the outline is
+    well organized.
+  <url master="http://www.tldp.org/LDP/abs/abs-guide.html.tar.gz">
+  <author>Mendel Cooper</author>
+  <title>Advanced Bash-Scripting Guide</title>
+  <modified>Wed, 28 Apr 2004 12:13:33 GMT</modified></url>
+</document>
+
+  <document name="O'Reilly Unix Bookshelf" archive="archive/languages/shell/unix_bookshelf.tar.bz2" expanded="sec//languages/shell/unix_bookshelf/">
+    I caught my first glimpse of the UNIX nirvana with Unix Powertools.
+
+    <bkmark ref="upt/index.htm">Unix Powertools</bkmark>
+    <bkmark ref="sedawk/index.htm">Sed &amp; Awk</bkmark>
+  <url master="null"><author>null</author><title>null</title></url><outline top="index.htm"/></document>
+
+  <tool name="Zsh" version="4.09" devsite="http://www.zsh.org/" news="http://www.b2pi.com/zsh/News/">
+
+  Zsh is a powerfull interactive shell with the most extreme
+  combination of interactive and scripting use.
+
+  <support>
+    <feature>
+     programmable tab completion (community developed codebase is telepathic)
+    </feature>
+  </support>
+
+  <manual master="http://www.b2pi.com/zsh/Doc/" archive="archive/languages/shell/zsh_manual.tar.bz2" expanded="sec//languages/shell/zsh_manual/zsh.html">
+    Zsh Manual
+  </manual>
+
+  <package distribution="debian">
+  <main>zsh</main>
+  </package>
+  </tool>
+
+  <tool name="screen" version="4.0.2" devsite="http://www.guckes.net/screen/" buglist="http://www.guckes.net/screen/bugs.php3">
+
+  Screen is a terminal multiplexer allowing programs
+  based on full screen update [ncurses linked tools
+  are an example] to be caged without terminal switching.
+ 
+  <manual master="http://www.guckes.net/screen/docs.php3" archive="null" expanded="null">
+    Screen Documentation
+  </manual>
+
+  <package distribution="debian">
+  <main>screen</main>
+  </package>
+  </tool>
+
+  <snippets>
+    <snippet name="zshrc" description="general Zsh interactive shell configuration">
+#----------------------------------------------------------------------
+# set a local prompt, with the error code from the last pipeline,
+# followed by a question mark. Set remote prompt for "username@host"
+#----------------------------------------------------------------------
+PROMPT="%? ? "
+RPROMPT="[%n@%m]"
+
+#----------------------------------------------------------------------
+# load programmable tab completion
+#----------------------------------------------------------------------
+autoload -U compinit
+compinit
+
+#----------------------------------------------------------------------
+# aliases
+#----------------------------------------------------------------------
+unalias run-help
+
+# basic commands
+alias ls='ls -F'
+alias du='du -h'
+alias df='df -h'
+alias ftp="screen -S ftp ncftp "
+
+# screen commands
+alias sl='screen -list'
+alias sr='screen -r '
+
+# system commands
+alias free='free -m'
+alias netf="netstat | grep -v '^unix'"
+
+# networking
+alias http_recurse="screen -S reap wget -r -k -p"
+alias http_scrape="screen -S reap wget -k -p"
+
+# X11 stuff
+alias desktop='cd ; startx &gt;/dev/null 2&gt;&amp;1 &amp;'
+
+# programming aliases
+alias s_pdoc="screen -S perldoc perldoc"
+alias r_pdoc="screen -r perldoc"
+
+# entertainment
+alias s_civ="screen -S civ_server civserver -r ~/.civserver"
+alias r_civ="screen -r civ_server"
+
+#----------------------------------------------------------------------
+# some basic enviroment variables
+#----------------------------------------------------------------------
+PAGER='most'
+EDITOR='emacsclient -n'
+export PAGER EDITOR
+
+#----------------------------------------------------------------------
+# turn on the cool Zsh features.
+#----------------------------------------------------------------------
+setopt auto_cd correct correct_all complete_in_word always_to_end
+setopt auto_list list_ambiguous auto_menu multios
+setopt magic_equal_subst bare_glob_qual extended_glob numeric_glob_sort
+setopt csh_junkie_history hist_ignore_dups hist_no_functions hist_no_store
+setopt hist_verify
+setopt ignore_eof nobeep hash_cmds hup
+
+#----------------------------------------------------------------------
+# create a function for text consoles, to blank the screen, and lock
+# the terminal.
+#----------------------------------------------------------------------
+lockdown () {
+    clear;
+    vlock -a;
+}
+
+#----------------------------------------------------------------------
+# search for a process by name, and send the signal specified. A poor
+# man's killall
+#----------------------------------------------------------------------
+sig_by_name () {
+        kill -$2 `ps aux | grep $1 | tr -s " " | awk '{FS=" ";print $2}'`
+}</snippet>
+
+    <snippet name="line-loop" description="iterate by lines through pipeline output">
+old_ifs=$IFS;
+IFS=$'\012';
+
+for line in `xsltproc archive/toolbox/{variables.xsl,toolbox.xml} | sort`
+do
+  IFS=$old_ifs;
+done
+
+echo "$current=\"$packed\"" &gt;&gt;zshenv</snippet>
+
+     <snippet name="file input" description="open and read from a file">
+# open file handle three with the filename
+3&lt;&gt;${tmp}unpck_targets
+
+# read a line from the file into variable "target",
+# note a -n option allows n characters to be read instead
+# of line deliniated.
+read target &lt;&amp;3
+     </snippet>
+   </snippets>  
+  </section>
+
+  <section name="XML">
+  <document name="XML definition 1.0" archive="archive/languages/xml/REC-xml-20040204.xml.bz2" expanded="sec//languages/XML/1.1_3rd.html">
+    XML, a W3C ratified standard, for extensible markup. The core syntax
+    is a layer for dealing with character set, record deliniation, and
+    expression of record heirarchies.
+  <url master="http://www.w3.org/TR/2004/REC-xml-20040204/">
+  <author>W3C XML Core Working Group</author>
+  <title>XML lanaguage definition 1.0 3rd Ed</title>
+  <modified>Mon, 02 Feb 2004 17:10:38 GMT</modified></url>
+</document>
+
+  <document name="O'Reilly XML Bookshelf" archive="archive/languages/xml/oreilly-xml_cd_bookshelf.tar.bz2" expanded="sec//languages/XML/oreilly-xml_cd_bookshelf/">
+    <bkmark ref="xmlnut/ch22_03.htm">XPath Quick referance</bkmark>
+    <bkmark ref="xslt/index.htm">XSLT</bkmark>
+  <url master="null"><author>null</author><title>null</title></url><outline top="index.htm"/></document>
+
+  <tool name="LibXM2" version="2.6.8" devsite="http://xmlsoft.org/index.html" buglist="http://bugzilla.gnome.org/buglist.cgi?product=libxml2" news="http://xmlsoft.org/news.html">
+
+  LibXML2 is the Gnome parser. This toolset has the feel of heavy use,
+  with command line filters [xmllint] sporting a rich option set. It's
+  library foundation has spurred wide adoption, with almost the entire
+  gnome offering as it's core user base.
+  
+  <filters>
+   <filter description="validate">
+   $HOME/toolbox/native/bin/xmllint --valid --noout [foo.xml]</filter>
+  </filters>
+
+  <manual master="http://xmlsoft.org/html/index.html" archive="archive/languages/xml/libxml2-2.6.7-doc.tar.bz2" expanded="sec//languages/XML/libxml2-2.6.7-doc/">
+    LibXML2 manual
+  </manual>
+
+  <package distribution="debian">
+  <main>libxml2-utils</main><related>libxml2-dev</related>
+  </package>
+  </tool>
+
+  <tool name="XML::XSH" version="1.8.2" devsite="http://xsh.sourceforge.net/" news="http://xsh.sourceforge.net/news_1.html">
+  A interactive, and inlinable shell for navigating, and reading,
+  and writing XML files and streams. This is the true XML supertool.
+  
+  Note: tested against libxml2 2.6.8. Anything less than that version
+  causes *severe* test harness failures and XSH malfunctions.
+
+  <support>
+    <feature>interactive shell with: Xpath powered cd,ls,pwd</feature>    
+    <feature>blend XSH commands, Xpath, perl and shell code</feature>    
+    <feature>does it work on windows ? probably</feature>    
+    <feature>The source code can teach most of the perl XML API's</feature>    
+  </support>
+
+  <filters>
+    <filter description="load dataset on startup">
+    xsh -q -I [dataset]</filter>
+
+    <filter description="load script + quiet interactive">
+    xsh -q -l [script] -i</filter>
+
+    <filter description="pass args to script">
+    xsh -l [script] -a [args] </filter>
+  </filters>
+
+  <manual master="http://xsh.sourceforge.net/doc/html/index.html" archive="archive/languages/xml/xsh-manual.html.bz2" expanded="sec//languages/XML/xsh-manual.html">
+    XSH manual
+  </manual>
+
+  <package distribution="CPAN">
+  <main>XML::XSH</main>
+  </package>
+  </tool>
+
+  <tool name="xmlsemdiff" devsite="" version="fucked">
+
+  A semantic diff, for comparing XML files without considering
+  whitespace and other irrelevant parsings.
+
+  <package distribution="CPAN">
+  <main>XML::SemanticDiff</main>
+  </package>
+  </tool>
+
+  <document name="XSL standard" archive="archive/languages/xml/REC-xslt-19991116.html.bz2" expanded="sec//languages/XML/REC-xslt-19991116.html">
+    XSL is W3C Recommendation for a XML based language for translating
+    from a document model defined XML flavor, to abritrary data models
+    and formats. Most common use is generating HTML from a XML data-set.
+  <url master="http://www.w3.org/TR/1999/REC-xslt-19991116">
+     <author>XSL Working Group</author>
+     <title>XSL Transformations (XSLT) Version 1.0</title>   
+  <modified>Wed, 14 May 2003 14:32:34 GMT</modified></url>
+</document>
+
+  <tool name="LibXSLT" version="1.1.4" devsite="http://xmlsoft.org/XSLT/" buglist="http://bugzilla.gnome.org/buglist.cgi?product=libxslt" news="http://xmlsoft.org/XSLT/news.html">
+  LibXSLT is the Gnome XSL engine. 
+
+  <support>
+    <feature>Xpath</feature>    
+    <feature>Xpointer</feature>    
+    <feature>Xinclude</feature>    
+  </support>
+
+  <filters>
+    <filter description="process">
+    xsltproc --xinclude [foo].{xsl,xml} &gt;[foo].html</filter>
+    <filter description="debug">
+    xsltproc -v --load-trace --xinclude [foo].{xsl,xml} 2&gt;[foo].trace &gt;[foo].html</filter>
+  </filters>
+
+  <manual master="http://xmlsoft.org/XSLT/xsltproc.html" archive="archive/languages/xml/xsltproc.html.bz2" expanded="sec//languages/XML/xsltproc.html">
+    xsltproc manual
+  </manual>
+
+  <package distribution="debian">
+  <main>xsltproc</main>
+  </package>
+  </tool>
+
+  <tool name="Xalan" version="2.6.0" devsite="http://xml.apache.org/xalan-j/index.html" buglist="http://xml.apache.org/xalan-j/readme.html#bugs">
+
+  Xalan is the XSLT engine developed by the Apache project with java.
+
+  <support>
+    <feature>Portability with the JRE.</feature>    
+  </support>
+
+  <filters>
+    <filter description="basic">
+    toolbox/dist/j2sdk1.4.2_04/bin/java org.apache.xalan.xslt.Process</filter>
+    <filter description="process">
+    java org.apache.xalan.xslt.Process -IN [foo.xml] -XSL [foo.xsl] 
+  -OUT [foo.html]</filter>
+  </filters>
+
+  <manual master="http://xml.apache.org/xalan-j/commandline_xsltc.html" archive="archive/languages/xml/xalan-j-manual.tar.bz2" expanded="sec//languages/XML/xalan-j-manual/commandline_xsltc.html">
+    Xalan manual
+  </manual>
+
+  <env>
+   <variable name="CLASSPATH">$HOME/toolbox/dist/xalan-j_2_6_0/bin</variable>
+  </env>
+
+  <dist master="http://www.apache.org/dyn/closer.cgi/xml/xalan-j" cache="archive/languages/xml/xalan-j_2_6_0-bin-2jars.tar.gz" inst="$HOME/toolbox/dist/xalan-j_2_6_0/">
+    uncompress the archive in the dist tree, and set the class path
+    accordingly. 
+  </dist>
+  </tool>
+
+
+  <library>
+    <module name="XPath">
+      <document name="XPath recommendation" archive="archive/languages/xml/library/Xpath/REC-xpath-19991116.html.bz2" expanded="sec//languages/XML/library/XPath/REC-xpath-19991116.html">
+
+       Xpath is a XML attribute based extension, providing a query
+       scheme for identifying element sets with: a path scheme similar
+       to the unix fs for tree navigation, a few unique id's, and
+       standard defined matching functions.
+      <url master="http://www.w3.org/TR/1999/REC-xpath-19991116">
+        <author>James Clark</author>
+        <title>XML Path Language (XPath) Version 1.0</title>
+      <modified>Mon, 13 Mar 2000 14:38:46 GMT</modified></url>
+</document>
+    </module>
+
+    <module name="Xlink">
+      <document name="Xlink W3C Recommendation" archive="archive/languages/xml/library/Xlink/REC-xlink-20010627.html.bz2" expanded="sec//languages/XML/library/Xlink/REC-xlink-20010627.html">
+
+       W3C Xlink Recommendation. A XML attribute based standard for
+       linking external entities to XML data-sets.
+      <url master="http://www.w3.org/TR/2001/REC-xlink-20010627/">
+      <author>W3C XML Linking Working Group</author>
+      <title>XML Linking Language (XLink) Version 1.0</title>
+      <modified>Wed, 27 Jun 2001 15:15:00 GMT</modified></url>
+      </document>
+    </module>
+
+    <module name="Xpointer">
+      <document name="XPointer W3C Working Draft" archive="archive/languages/xml/library/Xpointer/WD-xptr-20020816.html.bz2" expanded="sec//languages/XML/library/Xpointer/WD-xptr-20020816.html">
+
+       Xpointer provides Xpath syntax in external entity referances via Xlink. 
+      <url master="http://www.w3.org/TR/2002/WD-xptr-20020816">
+      <author>W3C XML Linking Working Group</author>
+      <title>XML Pointer Language (XPointer)</title>
+      <modified>Fri, 16 Aug 2002 13:22:42 GMT</modified></url>
+      </document>
+    </module>
+
+    <module name="Xinclude">
+      <document name="Xinclude W3C Working Draft" archive="archive/languages/xml/library/Xinclude/WD-xinclude-20031110.xml.bz2" expanded="sec//languages/XML/library/Xinclude/WD-xinclude-20031110.html">
+
+       Xinclude is a XML attribute based extension for merging element
+       subsets from
+      <url master="http://www.w3.org/TR/2003/WD-xinclude-20031110/">
+  <author>W3C XML Core Working Group</author>
+     <title>XML Inclusions (XInclude) Version 1.0</title>
+     <modified>Thu, 06 Nov 2003 23:45:50 GMT</modified></url>
+    </document>
+    </module>
+  </library>
+
+  <snippets>
+    <snippet name="XSL -&gt; XHTML barebones" description="XSL skeleton for targeting CSS/XHTML">
+&lt;?xml version="1.0" encoding="US-ASCII"?&gt;
+&lt;!--
+StyleSheet: for transforming the toolbox xml data into the HTML front-end
+related: toolbox.dtd
+written by: Mike Mattie
+--&gt;
+&lt;xsl:stylesheet version="1.0"
+                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+
+&lt;xsl:output 
+	method="xml" 
+	omit-xml-declaration="no"
+	doctype-public="-//W3C//DTD XHTML 1.0"
+        doctype-system="Strict//EN http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"/&gt;
+
+
+&lt;!--
+The document root, generate HTML boilerplate
+--&gt;
+
+&lt;xsl:template match="/"&gt;
+&lt;html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"&gt;
+&lt;head&gt;
+&lt;link rel="stylesheet" href="toolbox.css" title="toolbox"/&gt;
+&lt;META http-equiv="Content-Style-Type" content="toolbox"/&gt;
+&lt;title&gt;ToolBox&lt;/title&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;xsl:apply-templates/&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+&lt;/xsl:template&gt;
+
+&lt;/xsl:stylesheet&gt;</snippet>
+
+    <snippet name="XSL -&gt; Text barebones" description="XSL skeleton for targeting non markup translations">
+&lt;?xml version="1.0" encoding="US-ASCII"?&gt;
+&lt;!--
+StyleSheet: for transforming the toolbox xml data into the HTML front-end
+related: toolbox.dtd
+written by: Mike Mattie
+--&gt;
+&lt;xsl:stylesheet version="1.0"
+                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"&gt;
+
+&lt;xsl:output method="text"/&gt;
+
+&lt;xsl:template match="/"&gt;
+  &lt;xsl:apply-templates/&gt;
+&lt;/xsl:template&gt;
+
+&lt;/xsl:stylesheet&gt;</snippet>
+
+    <snippet name="XSLT escaping" description="force whitespace output in XSLT source">
+&lt;!-- The xsl:text element will copy the element text verbatim.
+        This example outputs the attribute as a newline deliniated
+        record for processing with the UNIX toolbox. --&gt;
+&lt;xsl:template match="@archive"&gt;&lt;xsl:value-of select="."/&gt;
+&lt;xsl:text&gt;
+&lt;/xsl:text&gt;
+&lt;/xsl:template&gt;</snippet>
+
+    <snippet name="shorthands" description="shell function wrappers for tools">
+function xmlv {
+  xmllint --valid --noout $1.xml
+  return 0;
+}
+
+function xslt {
+  xsltproc --xinclude $1.{xsl,xml} &gt;$1.html
+  return 0;
+}
+
+function xsld {
+  xsltproc -v --load-trace --xinclude $1.{xsl,xml} 2&gt;$1.trace &gt;$1.html
+  return 0;
+}</snippet>
+  </snippets>
+  </section>
+
+  <section name="HTML">
+     <document name="HTML 4.0.1" archive="archive/languages/html/REC-html401.tar.bz2" expanded="sec//languages/HTML/REC-html401/cover.html">
+
+       W3C Web Consortium Recommendation.
+     <url master="http://www.w3.org/TR/1999/REC-html401-19991224/">
+     <author>W3C HTML Working Group</author>
+     <title>HTML 4.01 Specification</title>
+     <modified>Mon, 13 Mar 2000 14:38:32 GMT</modified></url>
+     </document>
+
+     <document name="XHTML 1.0" archive="archive/languages/html/REC-xhtml10.tar.bz2" expanded="sec//languages/HTML/REC-xhtml10/Cover.html">
+
+       W3C Web Consortium Recommendation.
+     <url master="http://www.w3.org/TR/xhtml1/xhtml1.tgz">
+     <author>W3C HTML Working Group</author>
+     <title>XHTML 1.0 The Extensible HyperText Markup Language (Second Edition)</title>
+     <modified>Thu, 01 Aug 2002 18:37:56 GMT</modified></url>
+     </document>
+
+     <document name="CSS2 R1" archive="archive/languages/html/CSS2r1.tar.bz2" expanded="sec//languages/HTML/CSS2r1/cover.html">
+
+       W3C Web Consortium Recommendation.
+     <url master="http://www.w3.org/TR/2004/CR-CSS21-20040225/">
+     <author>W3C HTML Working Group</author>
+      <title>Cascading Style Sheets, level 2 revision 1 CSS 2.1 Specification</title>
+      <modified>Wed, 25 Feb 2004 18:06:25 GMT</modified></url>
+      </document>
+     <snippets>
+       <snippet name="XHTML barbones" description="minimal XHTML 1.0 skeleton">
+&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0" 
+"Strict//EN http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"&gt;
+&lt;html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"&gt;
+&lt;head&gt;
+&lt;link title="[foo]" href="[foo].css" rel="stylesheet"/&gt;
+&lt;meta content="[foo]" http-equiv="Content-Style-Type"/&gt;
+&lt;title&gt;[foo:title]&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;/body&gt;
+&lt;/html&gt;</snippet>
+     </snippets>
+  </section>
+
+  <section name="perl">
+
+  <document name="O'Reilly Perl Bookshelf" archive="archive/languages/perl/oreilly-perl_cd_bookshelf.tar.bz2" expanded="sec//languages/perl/oreilly-perl_cd_bookshelf/">
+    The O'reilly Perl bookshelf is the authorative user documentation
+    for perl.  The rest is in POD, the searchable format included with
+    perl itself, containing tutorials, langauge referances, and
+    module/function indexes.
+
+    <bkmark ref="prog/index.htm">Programming Perl 3rd Ed</bkmark>
+    <bkmark ref="lperl/index.htm">Learning Perl 3rd Ed</bkmark>
+    <bkmark ref="cookbook/index.htm">Perl Cookbook</bkmark>
+    <bkmark ref="pxml/index.htm">Perl &amp; XML</bkmark>
+    <bkmark ref="lwp/index.htm">Perl &amp; LWP</bkmark>
+  <url master="null"><author>null</author><title>null</title></url><outline top="index.htm"/></document>
+
+  <tool name="perl5" version="5.8" devsite="http://dev.perl.org/perl5/" buglist="http://rt.perl.org/perlbug/">
+
+  Perl 5 is the current stable version of perl.
+  </tool>
+
+  <tool name="CPAN" version="dyn" devsite="http://www.cpan.org/" buglist="">
+
+  CPAN is the community library. It is developed ad-hoc, with topical
+  and searchable organization by a volunteer librarian.
+  <filters>
+    <filter description="shell">perl -MCPAN -e shell</filter>
+    <filter description="basic install">install CPAN::Bundle</filter>
+  </filters>
+  </tool>
+  </section>
+
+  <section name="java">
+
+  <document name="O'Reilly Java Bookshelf" archive="archive/languages/java/oreilly_java_cd_bookshelf.tar.bz2" expanded="sec//languages/java/oreilly_java_cd_bookshelf/">
+    <bkmark ref="exp/index.htm">Exploring Java</bkmark>
+    <bkmark ref="langref/index.htm">Java Language Reference</bkmark>
+    <bkmark ref="fclass/index.htm">Java Fundamental Classes Reference.</bkmark>
+  <url master="null"><author>null</author><title>null</title></url><outline top="index.htm"/></document>
+
+  <tool name="JRE" version="1.4.2" devsite="http://java.sun.com/linux/index.html" buglist="">
+
+  the JRE is built and licensed by SUN.
+
+  <env>
+    <variable name="PATH">$HOME/toolbox/dist/j2sdk1.4.2_04/bin</variable>
+  </env>
+  </tool>
+  </section>
+
+</section> <!-- the end of the languages section -->
+
+<section name="forms">
+  <tool name="SubVersion" version="1.0" devsite="http://subversion.tigris.org/" buglist="http://subversion.tigris.org/servlets/ProjectIssues" news="http://subversion.tigris.org/servlets/ProjectNewsList">
+    A version control system designed from experience with CVS's issues.
+    Far better than CVS
+
+    <support>
+       <feature>atomic commits, transaction database backing</feature>
+       <feature>offline mode</feature>
+       <feature>mv files in tree retaining version history</feature>
+       <feature>an interface similar to CVS but more sane</feature>
+    </support>
+    <package distribution="debian">
+    <main>subversion subversion-tools</main>
+    </package>
+  </tool>
+</section>
+  
+<section name="scripts">
+  <tool name="script collection" version="vcntl" devsite="null" buglist="file:scripts/BUGS" news="file:scripts/NEWS">
+
+    <env>
+    <variable name="PATH">$HOME/toolbox/scripts</variable>
+    </env>
+  </tool>
+</section>
+
+</toolbox>

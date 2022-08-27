@@ -1,0 +1,140 @@
+# 
+# Shell Transaction Module
+#
+
+function stm_commit_add {
+
+  if ! (( ${+1} )) ; then
+    cat 1>&2 <<EOF
+stm_commit_add: <file list>
+
+Add a list of files to the commit backup. Files will be backed up
+before the function returns. When stm_rollback is called all of the
+backups will be restored. When stm_commit is called the backups are
+removed.
+
+When a file does not exist, it is assumed that it will be created by
+the calling code, and therefore is added to the rollback purge
+list. This is a conveinance that assumes only files that will be
+touched by the program will be given to the commit/rollback functions.
+Break this assumption and horrible things may happen.
+EOF
+  fi
+
+  local file
+  # this will skip files that do not exist
+  for file ( ${(q)@} ); do
+    [[ -e $file ]] || {
+       [[ -o interactive ]] && \
+print -u2 "stm: file $file does not exist, adding to purge list"
+       stm_rollback_add $file
+       continue;
+    }
+
+    expr match $file "/" >/dev/null 2>&1 || { 
+      file=`echo "$PWD/$file" | path_strip_walking` 
+      file=${(q)file}
+    }
+
+    if (( ${+stm_archive} )) ; then
+      tar rf "$stm_archive" --force-local --absolute-names $file || {
+	print -u2 "stm_commit_add: external error - could not add to tar archive \"$stm_archive\""
+        return ${external_ERR:-1}
+      }
+    else
+      stm_archive="${TMPDIR}stm-archive-$(date | cut -d ' ' -f 4).tar"
+      tar cf "$stm_archive" --force-local --absolute-names $file || {
+	print -u2 "stm_commit_add: external error - could not create tar archive \"$stm_archive\""
+        return ${external_ERR:-1}
+      }
+
+      [[ -o interactive ]] && \
+print -u2 "stm: backup archive is \"$stm_archive\""
+    fi
+  done
+
+  return 0;
+}
+
+function stm_rollback_add {
+  if ! (( ${+1} )) ; then
+    cat 1>&2 <<EOF
+stm_rollback_add: <file list>
+
+Add a list of files to the rollback purge list. When stm_rollback is
+called all of the paths on the purge list will be removed with a
+recursive delete. When stm_commit is called the purge list is cleared.
+EOF
+  fi
+
+  (( ${+stm_purge_list} )) || typeset -ga stm_purge_list
+
+  stm_purge_list[(( ${#stm_purge_list} + 1 ))]=(${(q)@})
+
+  return 0;
+}
+
+function stm_commit {
+  local exit=0
+
+  (( ${+stm_archive} )) && {
+    rm "$stm_archive" || {
+      [[ -o interactive ]] && \
+print -u2 "stm: error could not remove rollback backup ${(q)stm_archive}"
+
+      exit=${external_ERR:-1}
+    }
+
+    unset stm_archive
+  }
+
+  (( ${+stm_archive} )) && unset stm_purge_list
+
+  return $exit;
+}
+
+function stm_rollback {
+  local exit=0
+
+  (( ${+stm_purge_list} )) && {
+    rm -rf ${(q)stm_purge_list} || {
+      [[ -o interactive ]] && \
+print -u2 "stm: stm_rollback could not purge the entire list ${(q)stm_purge_list}"
+
+      exit=${external_ERR:-1}
+    }
+
+    unset stm_purge_list
+  }
+
+  (( ${+stm_archive} )) && {
+    if tar xf "$stm_archive" --force-local --absolute-names --preserve ; then
+      (( $exit )) || stm_commit # cleanup after a totally sucessfull rollback
+    else
+      [[ -o interactive ]] && \
+print -u2 "stm: stm_rollback could not purge the entire list ${(q)stm_purge_list}"
+    fi
+
+    unset stm_archive
+  }
+
+  (( $exit )) && \
+print -u2 "stm: ERROR stm has experienced a fault.
+Please examine the problem before using again. To reset stm call stm_rollback again 
+after the problems have been diagnosed or call stm_commit to abandon the rollback."
+
+  return $exit;
+}
+
+function stm {
+  [[ -o interactive ]] && {
+    print -u2 "loaded The programmer's Toolbox stm (Shell Transaction module)."
+  }
+
+  [[ "$1" != "-init" ]] && return 0;
+
+  (( ${+stm_archive} )) && unset stm_archive
+  (( ${+stm_purge_list} )) && unset stm_purge_list;
+
+  return 0;
+}

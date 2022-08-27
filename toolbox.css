@@ -1,0 +1,316 @@
+/*----------------------------------------------------------------------
+toolbox.css: a stylesheet for the toolbox currently supporting graphical 
+             display.
+version: a2
+written by: Mike Mattie
+----------------------------------------------------------------------*/
+div.toc {
+  position: fixed;
+  float: left;
+
+  padding-left: .75em;
+  padding-right: .75em;
+  border: solid 2px rgb(150,0,0);
+}
+
+div.toc, div.toc * {
+  background: rgb(146,146,146);
+}
+
+div.toc div, div.toc div * {
+  background: rgb(135,135,135);
+  margin-top: 2px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+div.toc div div {
+  margin-left: 1.5em;
+}
+
+div.body {
+  width: 85%;
+  margin-left: 15%;
+}
+
+
+* {
+  background: rgb(125,125,125);
+}
+
+h1,h2,h3,h4 {
+  text-transform: capitalize;
+  text-align: center;
+  clear: both;
+}
+
+h1,h2,h3, h1 *,h2 *,h3 * {
+  color: rgb(175,175,175);
+  background: rgb(150,0,0);
+  font-size: 14pt;
+}
+
+h3 {
+  margin: 2em;
+  font-size: 12pt;
+}
+
+pre {
+  background: rgb(146,146,146);
+}
+
+pre.quote {
+  display: block;
+  position: relative;
+  left: 25%;
+  width: 65%;
+}
+
+a:visited {color: rgb(216,216,8);}
+a:link {color: rgb(216,216,8);}
+
+/*----------------------------------------------------------------------
+  the two pane setup
+----------------------------------------------------------------------*/
+
+div.section {
+  display: block;
+}
+
+div.docpane {
+   width: 40%;
+}
+
+div.toolpane {
+   float: right;
+   width: 42%;
+}
+
+
+/*----------------------------------------------------------------------
+  the bibliography
+----------------------------------------------------------------------*/
+
+div.bibliography, div.bibliography * {
+  background: rgb(146,146,146);
+}
+
+div.bibliography {
+  /* MLA standard */
+  padding-left: 1in; 
+  padding-right: 1in;
+  padding-top: 1in;
+}
+
+div.bibcite {
+  display: compact;
+
+  margin-left: 2px;
+  margin-right 2px;
+
+  padding-left: 2px;
+  padding-right: 2px;
+
+  font-size: 8pt;
+}
+
+
+div.credit span.author:after {
+  display: marker;
+  content: ". ";
+}
+
+div.credit span.title {
+  text-decoration: underline;
+}
+
+div.credit span.title:after {
+  display: marker;
+  content: ". ";
+}
+
+div.bibcite div.credit {
+  text-transform: capitalize;
+}
+
+div.bibcite div.ref {
+  margin-left: 3em;
+}
+
+div.ref span.url:before {
+  display: marker;
+  content: "<";
+}
+
+div.ref span.url:after {
+  display: marker;
+  content: ">.";
+}
+
+/*----------------------------------------------------------------------
+  The document element
+----------------------------------------------------------------------*/
+div.document, div.document * {
+  background: rgb(146,146,146);
+}
+
+div.document {
+  display: compact;
+
+  margin-left: 2em;
+  margin-top: .5em;
+  margin-bottom: .5em;
+  
+  border-left: 2px solid rgb(150,0,0);
+  border-bottom: 2px solid rgb(150,0,0);
+}
+
+div.document > span {
+  color: rgb(216,216,8);
+  border: 2px solid rgb(150,0,0);
+  background: rgb(150,0,0);
+
+  font-weight: bold;
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+
+div.document > span:before {
+  display: marker;
+  content: "[";
+  color: rgb(200,200,200);
+  margin-right: 2px;
+}
+
+div.document > span:after {
+  display: marker;
+  content: "] ";
+  color: rgb(200,200,200);
+  margin-left: 2px;
+}
+
+div.document div.heading {
+  text-align: center;
+  border-top: 2px solid rgb(150,0,0);
+  border-bottom: 2px solid rgb(150,0,0);
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+div.document div.link, div.document div.link * {
+  text-align: center;
+  background: rgb(135,135,135);
+  margin-top: 2px;
+}
+
+div.document div.null {
+  text-align: center;
+  color: rgb(216,216,8);
+  background: rgb(135,135,135);
+}
+
+div.document > table {
+  margin-top: 1em;
+}
+div.document > table th,td.label {
+  text-align: center;
+  border: 2px solid rgb(150,0,0);
+}
+
+div.document > table td.link,div.document > table td.link * {
+  background: rgb(135,135,135);
+}
+
+/*----------------------------------------------------------------------
+  The tool element
+----------------------------------------------------------------------*/
+div.tool, div.tool * {
+  background: rgb(146,146,146);
+}
+
+div.tool {
+  display: block;
+  margin: .75em;
+  border-left: 2px solid rgb(150,0,0);
+  border-bottom: 2px solid rgb(150,0,0);
+}
+
+div.tool > div.header * {
+  background: rgb(150,0,0);
+}
+
+div.tool > div.header {
+  display: inline;
+
+
+  color: rgb(216,216,8);
+  border: 2px solid rgb(150,0,0);
+  font-weight: bold;
+
+  padding-left: 1px;
+  padding-right: 1px;
+}
+
+div.tool > div.header span:before {
+  display: marker;
+  content: "[";
+  color: rgb(200,200,200);
+}
+
+div.tool > div.header span:after {
+  display: marker;
+  content: "] ";
+  color: rgb(200,200,200);
+}
+
+table.tool {
+  /* margin-left: 1px; */
+}
+
+table.tool th {
+  font-weight: normal;
+  border: 2px solid rgb(150,0,0);
+}
+
+table.tool td.tool, table.tool td.tool * {
+  background: rgb(135,135,135);
+}
+
+table.tool td.paste {
+  color: rgb(190,190,190);
+  background: black;
+}
+
+div.library {
+  display: block;
+  margin: 2em;
+}
+
+/*----------------------------------------------------------------------
+  The snippet element
+----------------------------------------------------------------------*/
+div.snippet {
+  display: block;
+  margin: 2em;
+
+  border-left: 2px solid rgb(146,146,146);
+  border-bottom: 2px solid rgb(146,146,146);
+}
+
+div.snippet span {
+  background: rgb(150,0,0);
+  color: rgb(216,216,8);
+  border: 2px solid rgb(146,146,146);
+}
+
+div.snippet pre {
+  display: compact;
+  background: black;
+  color: rgb(200,200,200);
+
+  margin-top: 1em;
+  margin-bottom: 0;
+}
+
+

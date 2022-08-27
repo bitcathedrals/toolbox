@@ -1,0 +1,52 @@
+# path_strip_walking: <STDIN> the path
+#
+# Remove the parent ".." and child "." links from a path
+
+function path_strip_walking {
+
+  local rel_path abs_path i;
+  typeset -a rel_path abs_path;
+
+  local save_ifs="$IFS"
+  IFS='/'; read -A rel_path
+  IFS="$save_ifs"
+
+  # going to have to set a array here with read -A <array> as this
+  # puts it all on one line, no worky here.
+
+  i=1; 
+  while [[ ${#rel_path[@]} -gt 0 ]] ; do
+    [[ -z "$rel_path[1]" ]] && {
+      shift rel_path; continue
+    }
+
+    case "$rel_path[1]" in
+    "..") (( i -= 1)) ;;
+    *) 
+      abs_path[$i]="$rel_path[1]"
+      (( ++i ))
+    ;;
+    esac
+
+    shift rel_path
+  done
+
+  local n=$i;
+  i=1;
+
+  print -n '/';
+  while (( i < n )) ; do
+    print -n "${abs_path[$i]}/"
+    (( ++i ))
+  done
+  print
+
+  return 0;
+}
+
+function path_util {
+  [[ -o interactive ]] && \
+print -u2 "Programmer's Toolbox path_util module autoloaded";
+
+  return 0;
+}

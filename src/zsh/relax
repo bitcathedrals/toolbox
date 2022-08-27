@@ -1,0 +1,45 @@
+function relax_check_schema {
+  local schema="$1"
+  shift
+
+  [[ -f "$schema" ]] || {
+    print -u2 "relax: check_schema error - file \"$schema\" does not exist, was expecting the \
+schema file"
+    return ${external_ERR:-1};
+  }
+
+  while (( $# )) ; do
+    [[ -f $1 ]] || {
+      print -u2 "relax: check_schema error - file \"$2\" does not exist, was expecting the \
+document"
+      return {$externa_ERR:-1};
+    }
+
+    xmllint --xinclude --relaxng "$schema" "$1" >/dev/null || {
+      print -u2 "relax: check_schema error - the document \"$1\" does _not_ validate"
+      return 1;
+    }
+
+    shift
+  done
+
+  return 0;
+}
+
+function relax_build_schema {
+
+  return 0;
+}
+
+function relax {
+  which trang >/dev/null 2>&1 || {
+    print -u2 "could not find trang in the path, a tool by Jame's Clark used to construct
+relaxNG schema files from the relaxNC compact notation."
+    return 1;
+  }
+
+  [[ -o interactive ]] && print -u2 "loaded the Programmer's Toolbox relax module"
+
+  [[ "$1" != "-init" ]] && return 0;
+  return 0;
+}

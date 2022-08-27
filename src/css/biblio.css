@@ -1,0 +1,53 @@
+/*----------------------------------------------------------------------
+  the bibliography
+----------------------------------------------------------------------*/
+div.biblio {
+  /* MLA standard */
+  padding-left: 1in; 
+  padding-right: 1in;
+  padding-top: 1in;
+}
+
+div.cite {
+  display: compact;
+
+  margin-left: 2px;
+  margin-right 2px;
+
+  padding-left: 2px;
+  padding-right: 2px;
+
+  font-size: 8pt;
+}
+
+div.credit span.author:after {
+  display: marker;
+  content: ". ";
+}
+
+div.credit span.title {
+  text-decoration: underline;
+}
+
+div.credit span.title:after {
+  display: marker;
+  content: ". ";
+}
+
+div.cite div.credit {
+  text-transform: capitalize;
+}
+
+div.cite div.ref {
+  margin-left: 3em;
+}
+
+div.ref span.url:before {
+  display: marker;
+  content: "&lt;";
+}
+
+div.ref span.url:after {
+  display: marker;
+  content: "&gt;.";
+}

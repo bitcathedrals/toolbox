@@ -1,0 +1,421 @@
+/*----------------------------------------------------------------------
+toolbox.css: 
+
+a stylesheet for the toolbox currently supporting graphical display.
+
+version: a written by: Mike Mattie
+
+The goal is minimal eye strain with cool colors. A two pane layout
+will be used with documents on the left and tools on the
+right. Indexes for fast traversal will be on the left since the
+document will be a large one file presentation of the knowledge base.
+----------------------------------------------------------------------*/
+
+/*----------------------------------------------------------------------
+               Foreground and background (colors)
+----------------------------------------------------------------------*/
+
+* { background: rgb(155,155,155); }  /* a light dirty grey background */
+
+/* 
+  titles are a blue background with a relatively intense white text 
+*/
+
+div.toc div, div.toc div *,
+h1, h1 *,
+h2, h2 *,
+
+div.tool div.title, 
+div.document div.title,
+div.snippet div.title { 
+  background: rgb(0,0,150);
+  color: rgb(190,190,190);
+}
+
+/*
+  where large text bodies are, [excepting snippets] lighten
+  the background for a higher contrast.
+*/
+
+div.snippet,
+div.snippet *,
+div.culture div.heading,
+div.document, div.document *,
+div.tool, div.tool *,
+table.tradeoff,table.tradeoff *,
+a.bio_link, div.biblio, div.biblio * { 
+  background: rgb(146,146,146);
+}
+
+/* 
+  where there are links with a relatively high intensity, a single
+  object that needs contrast from the background, or visual
+  seperation from other objects darken the background
+*/
+
+div.tool div.heading,
+div.tool div.heading *, 
+div.tool div.subheading, 
+
+div.document div.heading, 
+div.document div.heading *,
+div.document div.subheading,
+
+div.tool div.link, 
+div.tool div.link *, 
+
+div.document div.link,
+div.document div.link *,
+
+div.link_group,
+div.link_group *,
+
+div.tool div.link_group, 
+div.tool div.link_group *, 
+div.tool div.link_group a,
+
+div.document div.link_group, 
+div.document div.link_group *, 
+div.document div.link_group a,
+
+div.culture, 
+div.culture * { 
+  background: rgb(135,135,135);
+}
+
+/*
+  content text, id's and other internal state from the toolbox
+  [such as no remote master] are black for a stark contrast from the
+  links.
+*/
+
+div.paste, 
+div.snippet pre { 
+  color: black;
+}
+
+/*
+  where there is text segments intended for cut-and paste make it
+  look like a terminal with a dull color, and a black background
+*/
+
+div.paste, div.tool div.paste { 
+  border-top: 2px solid rgb(135,135,135);
+  border-left: 2px solid rgb(135,135,135);
+
+  border-bottom: 1px solid rgb(135,135,135);
+  border-right: 1px solid rgb(135,135,135);
+  color: rgb(179,179,179);
+  background: black;
+}
+
+a:visited {color: rgb(210,210,4);} /* Resource links are yellow */
+a:link {color: rgb(210,210,4);}
+
+/*
+  Links here are internal not content references, make them match
+  the section headings.
+*/
+
+div.toc a:visited {color: rgb(190,190,190);}
+div.toc a:link {color: rgb(190,190,190);}
+
+a.bio_link:visited {color: black;} /* Biography names need to be plain */
+a.bio_link:link {color: black;}
+
+/*
+  blue text is used for headings and special cases, such as where a
+  filter has been aliased.
+*/
+
+div.heading, 
+div.heading *,
+div.subheading, 
+div.subheading *,
+
+span.alias,
+span.alias:before,
+span.alias:after { 
+  color: rgb(0,0,150);
+}
+
+/* ----------------------------------------------------------------------
+                     bordering (colors)
+---------------------------------------------------------------------- */
+
+/*
+  The id is the internal locator, this gets bordered with no margin
+  so it appears to be part of the title.
+*/
+
+div.id { border: 2px solid rgb(0,0,150); }
+
+/*
+  drop shadow, still looks kinda ugly. but not as ugly as the sliders
+  do blargh ...
+*/
+
+div.toc div { 
+  border-bottom: 4px solid rgb(110,110,110);
+  border-right: 4px solid rgb(110,110,110);
+}
+
+div.navbar { 
+  border: 4px solid rgb(110,110,110);
+}
+
+/*
+  headings denote major parts of the content, and embedded objects.
+  a light blue bordering suffices.
+*/
+
+div.heading {
+  border: 2px solid rgb(0,0,150);
+  margin: 3px;
+}
+
+/*
+  The only bordering for the tradeoff table is the head with the
+  collumn descriptions
+*/
+
+table.tradeoff thead { 
+  border: 2px solid black;
+}
+
+/* ----------------------------------------------------------------------
+                     common (properties)
+---------------------------------------------------------------------- */
+
+/* 
+  capitalize and center for titles, headings, and the links 
+*/
+
+h2,
+div.heading, 
+
+div.subheading, 
+div.subheading *,
+
+div.title,
+
+div.link, 
+div.link *, 
+
+span.link, 
+span.link * {  
+  text-align: center;
+  text-transform: capitalize;
+}
+
+/* 
+  the section headings are a special case, align left to distinguish 
+*/
+
+h1 { 
+  text-align: left;
+}
+
+h1,h2 { /* both have large fonts */
+  font-size: 14pt;
+}
+ 
+/*
+  I need bold fonts for titles, the tradeoff table caption,
+  and the section links in the topical index to distinguish
+  it from the section parts.
+*/
+
+div.title,
+table.tradeoff caption,
+div.toc a.section {
+  font-weight: bold;
+}
+
+/* ----------------------------------------------------------------------
+                  common (margins)
+---------------------------------------------------------------------- */
+
+/*
+  vertical seperation between sections, and their major
+  components where there is always a element preceding
+  with a large top margin.
+*/
+
+h1,h2
+div.snippet pre,
+div.library,
+
+div.tool,
+div.document {  
+  margin-top: 1em;
+}
+
+/*
+  vertical seperation between items in content with a small
+  top margin.
+*/
+
+div.heading, 
+div.subheading,
+div.link, 
+span.link { 
+  margin-top: 2px;
+}
+
+/*
+  indent the tradeoff table for quickly grabbing the viewer focus
+*/
+
+table.tradeoff { 
+  margin-left: 2em;
+}
+
+/*
+  All of these are special cases
+*/
+
+div.navbar h1,
+div.body,
+table.tradeoff { 
+  margin-top: .5em;
+}
+
+div.snippet,
+div.culture { 
+  margin: .5em; 
+}
+
+span.link { /* need good seperation between links when grouped */
+  margin-right: .5em; 
+}
+
+
+div.docpane, /* no margin needed here, content will do that itself */
+div.toolpane {  
+  margin-top: 0em;
+}
+
+/* ----------------------------------------------------------------------
+                  common (padding)
+---------------------------------------------------------------------- */
+
+/*
+  left padding where being precisely flush would look ugly
+*/
+
+h1,
+div.navbar { 
+  padding-left: 4px; 
+}
+
+/*
+  increase the padding, and add a decent bottom margin to visually
+  place the content within the object boundries.
+*/
+
+div.docpane,
+div.toolpane,
+
+div.document,
+div.tool,
+
+div.culture {  
+  padding: 4px;
+}
+
+div.link_group,
+div.paste { 
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+/* ----------------------------------------------------------------------
+                     common (layout)
+---------------------------------------------------------------------- */
+
+/*
+  parts of section content that need to stack below the docpane/toolpane
+  need to clear floats
+*/
+
+div.culture, h1,h2 {  
+  clear: both;
+}
+
+/* ----------------------------------------------------------------------
+                     Navigation bar
+---------------------------------------------------------------------- */
+
+div.navbar {
+  display: block;
+  position: fixed;
+  float: left;
+
+  width: 15%;
+  height: 95%;
+}
+
+div.body {
+  width: 82%;
+  margin-left: 17%;
+}
+
+/*----------------------------------------------------------------------
+                     Body
+----------------------------------------------------------------------*/
+
+/*
+  the two collumn layout of documents and tools
+*/
+
+div.docpane { 
+  width: 48%; 
+}
+
+div.toolpane {
+  float: right;
+  width: 48%;
+}
+
+/* ----------------------------------------------------------------------
+                     topical index
+---------------------------------------------------------------------- */
+
+div.navbar div.toc { 
+  height: 90%;
+  overflow: scroll;
+}
+
+div.toc a { 
+  margin-left: 4px;
+  margin-right: 2px;
+}
+
+div.toc div, div.toc div * { 
+  margin-top: 4px;
+}
+
+/*----------------------------------------------------------------------
+                  content (generated)
+----------------------------------------------------------------------*/
+
+/*
+  the aliases use generated content to add common text
+*/
+
+span.alias:before { 
+  display: marker;
+  content: " [aliased to '";
+}
+
+span.alias:after { 
+  display: marker;
+  content: "']";
+}
+
+/*----------------------------------------------------------------------
+  Bibliographic styling
+----------------------------------------------------------------------*/
+
+@import url($TOOLBOX/src/css/biblio.css)

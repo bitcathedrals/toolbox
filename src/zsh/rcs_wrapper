@@ -1,0 +1,583 @@
+#----------------------------------------------------------------------
+# shorthand: rc
+#
+# The rc shorthand is a wrapper to reduce mistakes when using Revision
+# control systems. The rc function provides a generic command set with
+# additional sanity checks which generate valid RCS invocations to
+# execute the operations. 
+#
+# By supporting many RCS systems it can eliminate many simple
+# mistakes, provide a distilled feature set across the various
+# systems, and eliminate problems with typing commands for one RCS
+# system into another.
+#
+#
+# NOTE: two globals "rc_rcs,rc_repo" are used for procedural linkage.
+#----------------------------------------------------------------------
+
+function rc_wc_detect { # NA
+
+  # returns 0: setting the rc_rcs string to one of the
+  #            values enumerated below.
+
+  # returns 1: on failure to detect the RCS system.
+
+  # detects the RCS system in use from book keeping data in the
+  # working copy. It assumes that the CWD is the root of the
+  # working copy. Add support for a new RCS with elif's.
+
+  if [[ -d '.svn' ]] ; then
+    rc_rcs='svn';
+    return 0;
+  fi
+
+  return 1;
+}
+
+function rc_repo_detect {
+
+  # returns: same as rc_wc_detect, see return value description.
+
+  # Detect the RCS system in use from the repository locator notation.
+  # this is done by regular expressions alone for remote locators and
+  # in conjunction with FS structure checks for local locators.
+
+  # extend the control structure with elsif. Currently only local
+  # repositories are supported by the structure below.
+
+  if [[ -f "$1/conf/svnserve.conf" ]] ; then
+    if expr "$1" : '/' ; then
+      rc_repo="file://$1/"
+    else
+      rc_repo="file://$(echo "$PWD/$1/" | path_strip_walking)"
+    fi
+
+    rc_rcs='svn';
+  else 
+    return 1;
+  fi
+
+  return 0;
+}
+
+#----------------------------------------------------------------------
+#               SubVersion Branch tracking Support
+#
+# Support for branching, tracking, and merging branches (forks). A book
+# keeping file maintains persistant state to compensate for svn's lack
+# of built in branch tracking and related features. 
+#
+# This ".rc-branches" file has the format of one branch per line with
+# the fields:
+# 
+# label repo locator branch revision
+#
+# label    : a branch indentifier keying the remaining fields for lookup.
+# repo     : a repository URL/path
+# locator  : the identifier for a branch, this is RCS system specific.
+# revision : the revision number of the last merged point.
+#----------------------------------------------------------------------
+
+function rc_branch_query {
+  local merge_file="disabled"
+  local head="HEAD"
+
+  [[ $1 = "-m" ]] && {
+    merge_file="enabled"; shift
+    head="$1" ; shift
+  }
+  
+  # Loads the repository, the branch locator, and the branch revision
+  # which is the revision number of the last merged point.
+
+  local br_label br_repo br_loc br_rev;
+  read br_label br_repo br_loc br_rev < <(grep "^$1" .rc-branches)
+
+  [[ 0 -ne "$?" ]] && {
+    print -u2 "rc rc_branch_query: could not load branch label \"$1\" from .rc-branches"
+    return 1
+  };
+
+  rc_repo_detect "$br_repo" || {
+    print -u2 "rc: unable to determine which RCS is in use for repository command"
+    return 1
+  }
+
+  # extend with a case structure.
+  rc_repo="-r $br_rev:$head ${rc_repo}${br_loc}"
+
+  [[ $merge_file = enabled ]] &&\
+echo "$br_label $br_repo $br_loc $head" >|.rc-update
+
+  return 0;
+}
+
+function rc_branch_update { # the branch label to update from
+
+                            # the upper bound of the revision range to
+                            # apply, the lower bound or last merge
+                            # point will be read from the .rc-branches
+                            # file.
+
+  # update the working copy with the changes deliniated by the
+  # revision range.
+
+  if [[ -f .rc-update ]] ; then
+    print -u2 "aborting interrupted branch update"
+    rm .rc-update
+    return 1
+  else
+    rc_branch_query -m "$2" "$1"  || {
+      print -u2 "branch query failed for $1"
+      return 1
+    }
+  fi
+
+  eval svn merge $rc_repo 
+  [[ "$?" -ne 0 ]] && {
+    print -u2 "rc rc_branch_update error: svn merge failed aborting now"
+    rm .rc-update
+    return 1;
+  }
+
+  mv .rc-update .rc-sync
+  return 0;
+}
+
+function rc_branch_merge {
+  mv .rc-sync .rc-merge >/dev/null 2>&1 || {
+    [[ -f .rc-merge ]] || return 1;
+    print -u2 "resuming interrupted merge";
+  }
+
+  # this will fail erroneously *if* there is no newline terminating the
+  # .rc-merge file. beware.
+
+  local br_label br_repo br_loc br_rev;
+  read br_label br_repo br_loc br_rev <.rc-merge || {
+    print -u2 "tool rc_branch_merge error: unable to read the .rc-merge file"
+    return 1
+  }
+
+  svn commit --force-log --message "merged from branch $br_loc changes up to revision $br_rev" || return 1;
+
+  mv .rc-merge .rc-post
+  return 0;
+}
+
+function rc_branch_post {
+  local br_label discard all;
+  read br_label discard <.rc-post || {
+    print -u2 "rc rc_branch_post error: could not read label from rc_post"
+    return 1;
+  }  
+
+  read all <.rc-post
+  sed -e "/^$label/ s,.*,$all," <.rc-branches >.rc-final || {
+    rm .rc-final
+    return 1
+  }
+
+  rm .rc-post
+  return 0;
+}
+
+#----------------------------------------------------------------------
+#                       Command Interpreter
+#
+# validates and interprets the user commands. Also provides a command
+# summary and use documentation.
+#----------------------------------------------------------------------
+
+function rc {
+  rc_rcs=''; rc_repo=''; # clear procedural linking variables
+
+  local cmd='';
+
+  if [[ "$#" -lt 1 || "$1" = "help" ]] ; then
+     cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper command summary
+       For use of a particular command use the help arguement
+       to the command for example: "rc co help"
+       
+       Repository - RO
+
+       rc co : repository check-out
+       rc bs : status of working copy against branch
+       rc bd : diff of working copy against branch
+       
+       Repository - RW
+
+       rc br : repository branch
+       rc bu : synchronize working copy with a branch (see also
+               bm "branch merge")
+
+       Working Copy - RO
+
+       rc s  : status of working copy
+       rc l  : display commit log
+       rc d  : diff working copy against checkout state
+
+       Working Copy - RW
+
+       rc u  : synchronize a working copy to checkout state
+       rc r  : revert a working copy to checkout state
+
+       rc c  : commit working copy changes to repository
+       rc bm : merge previous branch synchronization
+
+       rc e  : erase a file
+       rc a  : add file to working copy
+EOF
+    return 0;
+  fi
+
+  local oper="$1"; shift;
+
+  if [[ $oper = "co" || $oper = "br" || $oper = "bs" || $oper = "bd" || $oper = "bu" ]] ; then
+    # these are remote repository ops
+
+    rc_repo_detect $1;
+
+    case $oper in
+    "co")
+      if [[ "$#" -lt 2 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper checkout command summary
+       rc co help | <repository path> [ -e ] <RC id> [path]
+
+       The repository path and the RC id are required arguements. The
+       RC id is the identifier by which the Revision Control System
+       refers to the object you want to check out. The third arguement
+       is a optional path to place the checkout if the default is not
+       suitable.
+
+       An "-e" export flag can precede the RC id to export the branch
+       without creating the working copy book-keeping files.
+EOF
+        return 0;
+      fi
+  
+      shift; # get rid of the repo id, already consumed
+
+      local export="no"
+      [[ "$1" = "-e" ]] && {
+        export="yes"
+        shift;
+      }
+
+      case $rc_rcs in
+        'svn')
+          if [[ "$export" = "no" ]] ; then
+            cmd="co $rc_repo$1"       
+          else
+            cmd="export $rc_repo$1"
+          fi
+
+          (( $# > 1 )) && cmd="$cmd $2";
+        ;;
+      esac
+    ;;
+
+    "br")
+      if [[ "$#" -lt 3 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper branch create command summary
+       rc br help | [repository] [RC id] [RC id]
+
+       The repository path and both the RC id are required arguements. The first id
+       is the object you want to branch. The second id is the branch id.
+EOF
+        return 0;
+      fi
+
+      case $rc_rcs in
+      'svn') cmd="copy $rc_repo$2 $rc_repo$3 -m \\\\\"branched project $3 with path $2\\\\\"";;
+      esac
+    ;;
+
+    "bs")
+      if [[ "$#" -lt 1 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper branch status command summary
+       rc bs help | [branch]
+
+       The branch status command uses the branch parameter as a lookup
+       in the .rc-branches file.
+EOF
+        return 0;
+      fi
+
+      rc_branch_query "$1" || {
+        print -u2 "branch query failed for $1"
+        return 1;
+      };
+
+      case $rc_rcs in
+      'svn') cmd="merge --dry-run $rc_repo";;
+      esac
+    ;;
+
+    "bd")
+      if [[ "$#" -lt 1 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper branch diff summary
+       rc bd help | [branch]
+
+       The branch status command uses the branch parameter as a lookup
+       in the .rc-branches file.
+EOF
+        return 0;
+      fi
+
+      rc_branch_query "$1" || {
+        print -u2 "branch query failed for $1"
+        return 1;
+      };
+
+      case $rc_rcs in
+      'svn') cmd="diff $rc_repo" ;;
+      esac
+    ;;
+
+    "bu")
+      if [[ "$#" -lt 2 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper branch update command summary
+       rc bu help | [branch] [revision number]
+
+       The "branch update" command uses the branch parameter as a
+       lookup in the .rc-branches file. It then synchronizes the
+       working copy with the changes made in the branch from the last
+       merge point to the revision number specified.
+
+       The synchronization can create conflicts which the developer
+       must resolve. Once that is done the "bm" "branch merge" command
+       is used to merge the synchronization.
+EOF
+        return 0;
+      fi
+
+      rc_branch_update "$1" "$2"
+      return 0;
+    ;;
+    esac
+  else
+    # these are local repository ops
+
+    rc_wc_detect || {
+      print -u2 "unable to determine which RCS is in use, are you in a working copy ?"
+      return 1;
+    }
+
+    case $oper in
+    s)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper status command summary
+       rc s [help | offline] [file list]
+
+       The "status" command prints a report listing working copies
+       that have changed since checkout, and repository copies that
+       have changed since checkout. If the offline option is used
+       repository changes will not be shown. A file list may be
+       specified to restrict the report to a set of files.
+EOF
+        return 0;
+      fi
+
+      if [[ "offline" != "$1" ]] ; then
+        case $rc_rcs in
+        "svn") cmd=" -u";;
+        esac
+      else shift; fi
+
+      cmd="status -v $cmd"
+     
+      [[ $# -gt 0 ]] && {
+        cmd="$cmd $*"
+        shift;
+      }
+    ;;
+
+    l)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper log command summary
+       rc l [file list]
+
+       The "log" command prints a commit history of the repository.
+EOF
+        return 0;
+      fi
+
+      cmd="log $*";
+    ;;
+
+    bm)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper log command summary
+       rc bm [branch label]
+
+       Merge a previous branch synchronization (see "bu" "branch
+       update") with a commit and update of the branch tracking
+       data maintained by rc.
+EOF
+        return 0;
+      fi
+
+      local op=0
+      [[ -f .rc-sync || -f rc.merge ]] && op=1;
+      [[ -f .rc-post ]] && op=2;
+      [[ -f .rc-final ]] && op=3;
+
+      while (( op < 3 )) do ;
+        case $op in
+        0)
+          print -u2 "rc branch merge error: no branch update found"
+          return 1
+        ;;
+        1)   
+          if ! rc_branch_merge ; then
+            print -u2 "branch merge failed, terminating now"
+            return 1
+          fi
+        ;;
+        2) 
+          if ! rc_branch_post ; then
+            print -u2 "rc branch merge error: writeback of last merge point failed"
+	    return 1
+          fi
+        ;;
+        esac 
+        (( ++op ))
+      done
+
+      mv .rc-final .rc-branches
+      return 0;
+    ;;
+
+    u)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper update command summary
+       rc u [help | offline] [file list]
+
+       The "update" command synchronizes the working copy to the
+       server state updating local files with pending changes.
+       state. Not specifying any files will update the entire working
+       copy to check-out state.
+EOF
+        return 0;
+      fi
+
+      cmd="update $*"
+    ;;
+
+    d)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper diff command summary
+       rc d [rev:rev] [file list]
+
+       The "diff" command prints a diff report describing in hunks all
+       changes in a working copy since the checkout. A file list may
+       be specified to restrict the report to a set of files.
+EOF
+        return 0;
+      fi
+
+      if expr index "$1" ':'
+      then
+        print -u2 "server diff not yet supported";
+        return 1;
+      fi
+
+      cmd="diff $cmd $*";
+    ;;
+
+
+    r)
+      if [[ "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper status command summary
+       rc r [help | offline] [file list]
+
+       The "revert" command reverts the file list to the check-out
+       state. Not specifying any files will revert the entire
+       working copy to check-out state.
+EOF
+        return 0;
+      fi
+
+      cmd="revert $*"
+    ;;
+
+    e)
+      if (( $# == 0 )) || [[ "help" == "$1" ]] ; then
+          cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper erase command summary
+       rc e [help | offline] [file list]
+
+       The "erase" command removes the file list from the
+       working copy.
+EOF
+        return 0;
+      fi
+
+      cmd="remove $*"
+    ;;
+
+    a)
+      if [[ "$#" -lt 1 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper add command summary
+       rc a [file list]
+
+       The add command scheduales the listed files for addition to
+       the repository.
+EOF
+        return 0;
+      fi
+
+      cmd="add $*";
+    ;;
+
+    c)
+      if [[ "$#" -lt 1 || "help" == "$1" ]] ; then
+        cat >/dev/stderr <<EOF
+rc: (R)evision (C)ontrol wrapper commit command summary
+       rc c "message" [file list]
+
+       The commit command synchronizes the repository to your working
+       copy A file list may be specified to restrict the report to a
+       set of files. Without a file list all changed working copies
+       will be sent.
+EOF
+        return 0;
+      fi
+
+      cmd="commit --message '$1'"; shift;
+      cmd="$cmd $*";
+    ;;
+
+    *)
+      print -u2 "rc: command $1 not understood"
+      return 1;
+    ;;
+    esac
+  fi
+
+  eval "$rc_rcs $cmd";
+  print -u2 "rc: $rc_rcs command for operation \"$oper\" is \"$rc_rcs $cmd\"";
+  return 0;
+}
+
+function rcs_wrapper {
+  [[ -o interactive ]] && \
+print -u2 "Programmer's Toolbox rcs_wrapper module autoloaded";
+
+   path_util # requires the path utilities module
+   return 0;
+}

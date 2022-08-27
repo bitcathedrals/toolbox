@@ -1,0 +1,35 @@
+@media screen { 
+  div.xpd_rcs { 
+    margin-left: 15%;
+    margin-right: 15%;
+
+    padding-left: 1em;
+    padding-right: 1em;
+    background: rgb(100,100,107);
+    border: 1px solid black;
+  }
+
+  div.xpd_rcs div { 
+    margin-top: .5em;
+    text-align: center;
+  }
+
+  table.xpd_rtable { 
+    margin-left: 1in;
+    margin-right: 1in;
+  }
+
+  table.xpd_rtable , table.xpd_rtable th { 
+    border: 2px solid grey;
+  }
+
+  table.xpd_rtable caption { 
+    font-size: 14pt;
+    font-weight: bold;
+    text-align: center;                             
+  }
+
+  table.xpd_rtable td.synopsis { width: 25%; }
+  table.xpd_rtable td.version { font-weight: bold; }
+  table.xpd_rtable td.version { text-align: center; }
+}

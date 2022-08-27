@@ -1,0 +1,46 @@
+#----------------------------------------------------------------------
+# tmp file handling
+#----------------------------------------------------------------------
+
+function tmpdir_create {
+
+  # create a sub-directory for the tool's tmp files, either in the
+  # system tmp directory or the user specified one. When debugging use
+  # a sub-directory of the CWD with a fixed name for conveinance.
+
+  TMPDIR="${TMPDIR:-/tmp/}tool.$UID.$$"
+  [[ "$arg_dump" = "enabled" ]] && {
+    TMPDIR="$PWD/output"
+    print -u2 "tool debugging: preserving tmp files in \"$TMPDIR\""
+  }
+
+  mkdir -p $TMPDIR || {
+    print -u2 "tool error: could not create temporary directory $TMPDIR";
+    exit ${external_ERR:-1};
+  };
+
+  chmod 700 $TMPDIR
+
+  TMPDIR="${TMPDIR}/"
+  export TMPDIR
+
+  return 0;
+}
+
+function tmpdir_cleanup {
+  if [[ "$arg_dump" != "enabled" ]] ; then 
+    [[ "$arg_dbg" = "enabled" ]] && print -u2 "cleaning tmp directory";
+
+    [[ -d $TMPDIR ]] && {
+      rm -rf $TMPDIR || print -u2 "failed to cleanup TMPDIR \"$TMPDIR\""
+    };
+  else
+    print -u2 "preserving temporary directory \"$TMPDIR\" for debugging use"
+  fi
+
+  return 0;
+}
+
+function tmpdir {
+  [[ -o interactive ]] && print -u2 "Programmer's Toolbox tmpdir module autoloaded";
+}

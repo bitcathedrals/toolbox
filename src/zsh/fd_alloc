@@ -1,0 +1,485 @@
+#----------------------------------------------------------------------
+# fd_alloc module
+# written by Mike Mattie.
+#----------------------------------------------------------------------
+
+# handles are created by fd_handle_new, and destroyed by
+# fd_handle_free. The handle is returned in the exit status of
+# fd_handle_new.
+
+function fd_handle_new { # descriptive label for the command, function,
+                         # or feature that is using the handle to make
+                         # the temporary path generated recognizable.
+
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_handle_new: <name>
+
+Allocate a new file descriptor handle. Please specifiy the name of the
+program/function that will be using the descriptors.
+EOF
+
+    return ${internal_ERR:-1}
+  }
+  
+  fd_handle_reclaim $1; local h=$? # Reclaim a free'd handle when possible.
+
+  (( h < 0 )) && { # Create a new handle when necessary.
+
+    # change the duplicate tmp path string in fd_handle_reclaim, when
+    # the one below is changed.        \/\/\/\/\/\/\/\/\/\/\/
+
+    fd_hd[(( ${#fd_hd} + 1 ))]=(-1 -1 "${TMPDIR}${1}-h${h}")
+    (( h = ${#fd_hd} / fd_nfeilds ))
+  }
+
+  return $h;
+}
+
+function fd_handle_free { # the file handle to free
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_handle_free: 
+
+Close a handle, the descriptors will be closed if still active,
+and made available for re-allocation.
+EOF
+
+    return ${internal_ERR:-1}
+  }
+
+  # close the file descriptors that are in use, and have a
+  # interactivity level less than three (builtin coproc).
+
+  fd_close_rd $1
+  fd_close_wd $1
+
+  fd_handle_ofs $1
+  fd_hd[$?]=(-1 -1 "")
+
+  return 0;
+}
+
+#
+# Handle mangement: The preferred way to manage handles is with a LIFO
+# stack, for preserving and restoring the handle state by a callee,
+# without knowledge of the caller's context.
+#
+
+function fd_push_handle {
+  (( ${+i} )) && {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_push_handle: <handle>
+
+fd_push_handle takes a handle as a arguement, pushing the current
+fd_handle onto a stack, setting fd_handle to the arguement, and
+activating it.
+
+EOF
+
+    return ${internal_ERR:-1}
+  }
+
+  # push the existing fd_handle, and set fd_handle to the parameter
+  # value, ignore the existing handle when it is un-initialized
+
+  (( fd_handle >= 0 )) && {
+    (( ++fd_stack_ptr ))
+    fd_stack[$fd_stack_ptr]=$fd_handle
+  }
+  
+  fd_switch $1
+  return $?;
+}
+
+# restore the handle last placed onto the stack
+
+function fd_pop_handle {
+
+  local exit
+  if (( fd_stack_ptr > 0 )) ; then
+    fd_switch $fd_stack[$fd_stack_ptr] ; exit=$?
+    (( --fd_stack_ptr ))
+  else
+    fd_switch -1 ; exit=$?
+  fi
+
+  return $exit;
+}
+
+# fd_switch is used by fd_push_handle/fd_pop_handle to active a
+# handle, and can also be directly called when a LIFO stack does not
+# fit an application's use of fd_alloc handles.
+
+# Given a valid fd_handle it will set the global fd_handle to the
+# handle specified, set fd_rd, and fd_wd to the read and write
+# descriptors respectively, fd_tmp to a temporary path unique to this
+# file handle, and fd_r_lvl and fd_w_lvl to the handle's read and
+# write levels (see fd_using_rd/fd_using_wd for a description of
+# levels). 
+
+# The global variables allow very simple references to the handle's
+# data structures made, which are difficult in comparison to most
+# other languages due to the quirks of shell code.
+
+# Before a descriptor from a fd_handle can be used it must be
+# activated by fd_using_rd/fd_using_wd.
+
+function fd_switch { # the handle to switch to, returns zero when
+                     # the handle is usable, false otherwise.
+
+  (( ${+1} )) || {
+    print -u2 "fd_alloc: fd_switch - missing arguement, the file handle to \
+switch to"
+    return ${external_ERR:-1}
+  }
+
+  fd_handle=$1
+
+  (( fd_handle < 0 )) && {
+    print -u2 "fd_alloc: fd_switch - internal error cannot switch to a \
+unitialized handle"
+    return ${internal_ERR:-1}
+  }
+
+  fd_handle_ofs $fd_handle; local ofs=$?
+
+  # the read/write level
+
+  fd_r_lvl=$fd_hd[(( ofs + fd_rl_i ))]
+  fd_w_lvl=$fd_hd[(( ofs + fd_wl_i ))]
+
+  # the read/write descriptors.
+ 
+  fd_assign_rd
+  fd_assign_wd
+
+  # the tmp path
+
+  fd_tmp=$fd_hd[(( ofs + fd_tmp_i ))]
+
+  return 0;
+}
+
+function fd_req_rd {
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_using_rd: <read level>
+
+Request the read descriptor. This does not indicate that the
+descriptor is in use, nor does it update the handle's feilds. As a
+necessary preliminary it sets the global feilds fd_r_lvl, and the
+reserved descriptor fd_rd.
+
+When the actual descriptor has been bound to an inode fd_using_rd must
+be called to update the handle's data structures.
+
+zero is returned on success, non-zero on failure.
+
+1 : temporary file
+2 : pipe
+3 : builtin-coprocess
+EOF
+
+    return ${internal_ERR:-1}
+  }
+
+  (( $1 >= 0 && $1 <= 3 )) || return ${external_ERR:-1};
+
+  fd_r_lvl=$1
+  fd_assign_rd;
+
+  return 0;
+}
+
+function fd_using_rd {
+
+  # indicate that the descriptor has been bound to an inode by
+  # updating the handle's fields.
+
+  fd_handle_ofs $fd_handle 
+  fd_hd[(( $? + fd_rl_i ))]=$fd_r_lvl
+
+  return 0;
+}
+
+function fd_req_wd {
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_using_wd: <write level>
+
+Indicate that the write descriptor for the current file handle is
+now in use. Specify the write level, one of three numeric values:
+
+1 : temporary file
+2 : pipe
+3 : builtin-coprocess
+EOF
+
+    return ${internal_ERR:-1}
+  }
+  
+  (( $1 >= 0 && $1 <= 3 )) || return ${external_ERR:-1};
+
+  fd_w_lvl=$1
+  fd_assign_wd;
+
+  return 0;
+}
+
+function fd_using_wd {
+
+  # indicate that the descriptor has been bound to an inode by
+  # updating the handle's fields.
+
+  fd_handle_ofs $fd_handle
+  fd_hd[(( $? + fd_wl_i ))]=$fd_w_lvl
+
+  return 0;
+}
+
+# fd_set_tmp allows the tmp path feild to be changed. This can be done
+# as a rename, or as a general string store local to each handle.
+
+function fd_set_tmp {
+  (( ${+1} )) || {
+    [[ -o interactive ]] && \
+print -u2 "fd_using_tmp: error, requires an arguement to store"
+
+    return ${internal_ERR:-1}
+  }
+
+  fd_handle_ofs $fd_handle ; local ofs=$?
+
+  fd_tmp=$1
+  fd_hd[(( ofs + fd_tmp_i ))]=$1
+
+  return 0;
+}
+
+# close the active descriptors. This function can be called more than
+# once.
+
+function fd_close_rd {
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_close_rd: <fd_handle>
+
+Close the read descriptor for the file handle specified.
+EOF
+    return ${external_ERR:-1}
+  }
+
+  fd_handle_ofs $1 ; local ofs=$?
+
+
+  case $fd_hd[(( ofs + fd_rl_i ))] in
+  -1);;
+  3) exec <p&-;;
+  *) 
+    local d ; let "d=( $1 + 1 ) * 2 + 2"
+    eval exec "${d}<&-"
+  ;;
+  esac
+
+  return 0;
+}
+
+function fd_close_wd { # handle
+  (( ${+1} )) || {
+    [[ -o interactive ]] && cat 1>&2 <<EOF
+fd_close_wd: <fd_handle>
+
+Close the write descriptor for the file handle specified.
+EOF
+    return ${external_ERR:-1}
+  }
+
+  # if it is already closed do nothing
+
+  fd_handle_ofs $1 ; local ofs=$?
+
+  case $fd_hd[(( ofs + fd_wl_i ))] in
+  -1);;
+  3) exec p>&-;;
+  *) 
+    local d ; let "d=( $1 + 1 ) * 2 + 1"
+    eval exec "${d}>&-"
+  ;;
+  esac
+
+  return 0;
+}
+
+function fd_dump_handle { 
+  # dump a handle to STDERR with description of feilds
+
+  (( ${+1} )) || {
+    [[ -o interactive ]] && {
+      local n=$(( ${#fd_hd} / fd_nfeilds ))
+      cat 1>&2 <<EOF
+fd_dump_handle: <fd_handle>
+
+requires a fd_handle as an arguement, currently the range [1-$n]
+inclusive is valid. It will print the handle, the read descriptor, the
+write descriptor, the temporary file, the read level, and the write
+level feilds for debugging.
+EOF
+    }
+
+    return ${internal_ERR:-1}
+  }
+
+  fd_handle_ofs $1 ; local ofs=$?
+
+  local rl=$fd_hd[(( ofs + fd_rl_i ))]
+  local wl=$fd_hd[(( ofs + fd_wl_i ))]
+  local rd wd
+
+  case $rl in
+  -1) rd="unused";;
+  3) rd="builtin coprocess [p]";;
+  *) rd=$(( ( $1 + 1 ) * 2 + 1 ));;
+  esac
+
+  case $wl in
+  -1) wd="unused";;
+  3) wd="builtin coprocess [p]";;
+  *) wd=$(( ( $1 + 1 ) * 2 + 2 ));;
+  esac
+
+  local tmp=$fd_hd[(( ofs + fd_tmp_i ))]
+
+  cat 1>&2 <<EOF
+
+fd handle            : $1
+fd read descriptor   : $rd
+fd write descriptor  : $wd
+temporary file path  : $tmp
+
+coproc read level    : $rl
+coproc write level   : $wl
+EOF
+
+  return 0;
+}
+
+#
+# Infrastructure functions
+#
+
+function fd_handle_ofs { # the handle number
+  (( ${+1} )) || {
+    print -u2 "fd_alloc: fd_handle_ofs - internal error, this function was \
+not given the file handle to compute the fd_hd offset from"
+    return {internal_ERR:-1}
+  }
+  
+  # with the handle as a parameter compute the offset into the fd_hd
+  # array
+
+  return $(( $1 * fd_nfeilds + 1 ));
+}
+
+# using the value of fd_handle and fd_r_lvl assign the write descriptor.
+
+function fd_assign_wd {
+  case $fd_w_lvl in
+  3) fd_wd="p" ;;
+  -1) fd_wd="-1" ;;
+  *) let "fd_wd=( fd_handle + 1 ) * 2 + 1";
+  esac
+
+  return 0;
+}
+
+# using the value of fd_handle and fd_r_lvl assign the read descriptor.
+
+function fd_assign_rd {
+
+  case $fd_r_lvl in
+  3) fd_rd="p" ;;
+  -1) fd_rd="-1" ;;
+  *) let "fd_rd=( fd_handle + 1 ) * 2 + 2";
+  esac
+
+  return 0;
+}
+
+function fd_handle_count {
+  # DEPRECATED: 
+  # 
+  # this code is dusty, and is no longer used in the new API for
+  # fd_alloc. I will remove it unless a need for it arises soon.
+  #
+  # DEPRECATED:
+
+  # return a count of active handles
+
+  local i=1;
+  local c=0;
+
+  while (( i < ${#fd_hd} )) ; do
+    (( ${fd_hd[$i]} >= 0 )) && (( ++c ))
+    (( i += fd_nfeilds ))
+  done
+
+  return $c;
+}
+
+function fd_handle_reclaim {
+  (( ${+1} )) || {
+    [[ -o interactive ]] && \
+print -u2 "fd_handle_reclaim: requires a single arguement, the program \
+name for making the tmp path of reclaimed handles recognizable"
+    
+    return ${internal_ERR:-1}
+  }
+
+  # search the fd_hd array for a released handle to recycle when it is
+  # found, ensure that the feilds have been cleared and return the
+  # handle indice
+
+  local h=-1
+  local i=1;
+  while (( i < ${#fd_hd} )) ; do
+    (( ${fd_hd[$i]} < 0 )) && {
+      h=$(( i / fd_nfeilds ));
+      fd_hd[$i]=(-1 -1 "${TMPDIR}${1}-h${h}")
+      break
+    }
+
+    (( i += fd_nfeilds ))
+  done
+
+  return $h;
+}
+
+function fd_alloc {
+  [[ -o interactive ]] && \
+print -u2 "The programmer's Toolbox fd_alloc module is loaded"
+
+  [[ $1 = -init ]] || return 0;
+  [[ -o interactive ]] && print -u2 "initializing module globals"
+
+  fd_handle=-1                        # reset the current handle
+
+  (( ${+fd_hd} )) && unset fd_hd      # handle data
+  typeset -ga fd_hd                    
+  fd_hd=(-1 -1 "")
+
+  fd_nfeilds=3                        # number of feilds per handle
+
+  fd_rl_i=0                           # offset for read level
+  fd_wl_i=1                           # offset for write level
+  fd_tmp_i=2                          # offset for tmpfile path
+
+  # initialize the handle stack
+
+  (( ${+fd_stack} )) && unset fd_stack
+  typeset -ga fd_stack
+
+  fd_stack_ptr=0                      # reset the stack pointer
+
+  return 0;
+}

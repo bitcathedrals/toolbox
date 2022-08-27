@@ -1,0 +1,98 @@
+<!--
+Programmer's Toolbox Document Type Definition
+written by: Mike Mattie
+
+A document model to organize my open-source tool-set for efficient and
+effective work.
+-->
+
+<!ENTITY % biblio_doc SYSTEM "biblio.dtd">
+
+<!ELEMENT toolbox (package+, section+)>
+
+<!ELEMENT section (section | (document | tool | library | note | snippets)+)+>
+<!ATTLIST section
+name CDATA #REQUIRED
+>
+
+<!-- [shared entities] -->
+
+<!ELEMENT note (#PCDATA)>
+
+%biblio_doc;
+
+<!--
+KLUDGE: migrated halfway, fix later
+-->
+<!ELEMENT tool (#PCDATA | support | install | package | dist | filters | env | manual)*>
+<!ATTLIST tool
+name CDATA #REQUIRED
+version CDATA #REQUIRED
+devsite CDATA #REQUIRED
+buglist CDATA #IMPLIED
+news CDATA #IMPLIED
+changelog CDATA #IMPLIED
+>
+
+<!ELEMENT library (module)+>
+
+<!ELEMENT snippets (snippet)+>
+
+<!-- [language : sublevel 2]. -->
+
+<!-- [tool: sublevel] -->
+
+<!ELEMENT manual (#PCDATA)*>
+<!ATTLIST manual
+master CDATA #REQUIRED
+archive CDATA #REQUIRED
+expanded CDATA #REQUIRED
+>
+
+<!ELEMENT support (feature)+>
+<!ELEMENT feature (#PCDATA)>
+
+<!ELEMENT package (#PCDATA | main | related)*>
+<!ATTLIST package
+distribution CDATA #REQUIRED>
+
+<!ELEMENT main (#PCDATA)>
+<!ELEMENT related (#PCDATA)>
+
+<!ELEMENT dist (#PCDATA)>
+<!ATTLIST dist
+master CDATA #REQUIRED
+cache CDATA #REQUIRED
+inst CDATA #REQUIRED
+>
+
+<!ELEMENT filters (filter+)>
+<!ELEMENT filter (#PCDATA)>
+<!ATTLIST filter
+description CDATA #REQUIRED
+>
+
+<!ELEMENT env (variable+)>
+<!ELEMENT variable (#PCDATA)>
+<!ATTLIST variable
+name CDATA #REQUIRED
+>
+
+<!ELEMENT install (#PCDATA)>
+<!ATTLIST install
+source CDATA #REQUIRED
+build CDATA #REQUIRED
+native CDATA #REQUIRED
+>
+
+<!ELEMENT snippet (#PCDATA)>
+<!ATTLIST snippet
+name CDATA #REQUIRED
+description CDATA #REQUIRED>
+
+<!ELEMENT module (tool | document | note)+>
+<!ATTLIST module
+name CDATA #REQUIRED
+>
+
+

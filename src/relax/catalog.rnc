@@ -1,0 +1,348 @@
+#
+# catalog schema
+#
+
+# The catalog schema defines the meta-data for a collection, a set of
+# meta-data and associated files queried, rendered, and updated by the
+# Programmer's Toolbox.
+
+# xml namespace for controlling document parsing and interpretation
+
+namespace xml = "http://www.w3.org/XML/1998/namespace"
+
+grammar {
+
+  include "dublin-core.rnc"
+
+  #
+  # structure of the toolbox
+  #
+
+  start = element catalog {
+    attribute name { text },
+    ( node* & package* )
+  }
+
+  # Labeled elements are objects, a heirarchy of meta-data that
+  # operations such as: pack, unpack, cfg, etc. can find and use.
+
+  # The label itself is a locator in library terminology, a identifier
+  # that has no meaning outside of the catalog/collection. In terms of
+  # document model constraints it is a string unique in it's parent's
+  # (Xpath) context.
+
+  labeled = attribute name { text }
+
+  # Nodes are topic headings, structuring the catalog into a
+  # thematically classified heirarchy. Nodes are nestable within other
+  # nodes allowing complex topics to be broken down, and speeding
+  # lookups in the Outline.
+
+  node = element section {
+    labeled,
+    economic?,
+
+    # a standards element draws together a set of documents with which
+    # I range from skilled to expert in, under a economic label. This
+    # is used directly in resume generation.
+
+    element standards {
+      economic,
+      text
+    }*,
+
+    # a skillset element draws togehter a set of tools with which I
+    # range from skilled to expert in, under a economic label. Again,
+    # it is used directly in resume generation.
+
+    element skillset {
+      economic,
+      text
+    }*,
+
+    (
+      # nesting for heirarchal breakdown of topics. Nodes nest within
+      # themselves. Library elements are for frameworks where much of
+      # the functionality comes from components, where the components
+      # themselves are complex enouph to have several books,
+      # documents, and associated tools.
+
+      node* & 
+      library* & 
+
+      # documents, and tools are the main content of the catalog,
+      # seperating materials into knowledge and experience. This
+      # dichotomy is given a comprehensive treatment in the design
+      # documents.
+
+      document* & 
+      tool* & 
+
+      # Knowledge and technology are dead without communities of
+      # developers and practioners to continually employ and refine
+      # their knowledge and techniques. These elements reference the
+      # perodicals, groups, and institutions that bind together the
+      # communities that form around technology.
+
+      periodicals? & 
+      groups? & 
+      institutions? & 
+
+      # addendum's allow data to be spread across topics, distributing
+      # it to the relevant areas to make it's connections visible This
+      # is commonly used for config files, take emacs for an example,
+      # it has modes for many langauges, so the langauge specific
+      # configuration is kept in the section for that language.
+
+      addendum* &
+
+      # snippets are breif chunks of code to capture neat techniques,
+      # or format boilerplate as a reminder of how the red-tape is to
+      # be done.
+
+      snippet* & 
+
+      # Knowledge of key people, and publishing organizations is
+      # fundamental to mapping out a technology domain. Knowing who
+      # drives the technology, and who publishes them is priceless.
+
+      biography* &
+      publisher*
+    )
+  }
+
+  #
+  # economic value
+  #
+
+  # There is an economic value for all of the knowledge and experience
+  # in the catalog, however the true names that denote the knowledge
+  # and experience have very little if anything to do with the names
+  # given to it by society. The hacker/cracker distinction, and bogus
+  # terms like information superhighway are excellant examples of
+  # this.
+
+  # the economic label relates the object to the social and economic
+  # name for the object. When determining value it is the baseline.
+
+  economic_label = attribute eco_label { text }
+
+  # The economic value established by the label is adjusted by
+  # several factors to derive it's market value. This attribute
+  # captures the experience, and ability factors 
+
+  economic_value = (
+    attribute eco_exp { text },
+    attribute eco_lvl { "skilled" | "advanced" | "expert" }
+  )
+  
+  # this is a combination of label and value for intergration
+  # into content objects and topics.
+
+  economic = (
+    economic_label,
+    economic_value
+  )
+
+  library = element library {
+    labeled,
+    (package* & snippet* & document* & tool* & library*)
+  }
+
+  #
+  # toolbox content
+  #
+
+  document = element document {
+    labeled,
+    cached,
+    economic?,
+    (url? & 
+     text? & 
+     biblio &
+     element outline {
+       attribute top { text }?,
+       attribute toc { text }?,
+       attribute index { text }?,
+       attribute bibliography { text }?,
+       attribute glossary { text }?
+     }? &
+     element bkmark {
+       attribute ref { text }?,
+       text
+     }*
+    )
+  }
+
+  tool = element tool {
+    economic?,
+
+    labeled,
+
+    # links to the most used parts of the website. Devsite is required when the
+    # tool object is created. Everything else can be added incrementally.	
+    attribute devsite {text},
+    attribute version {text}?,
+    attribute news {text}?,
+    attribute changelog {text}?,
+    attribute buglist {text}?,
+    
+    (
+     #
+     # description
+     #
+
+     # the text is a description of the document to evaluate the use
+     # of a document or tool for a problem.
+
+     text? &
+
+     # strength's and weaknesses will be turned into a table to quickly
+     # view the tradeoffs for a tool.
+
+     element strength { text }* &
+     element weakness { text }* &
+
+     #
+     # bibliographic data
+     #
+
+     biblio &
+
+     #
+     # documentation
+     #
+
+     # the document elements allow manuals to be embedded in the tool
+     # object.
+
+     document* &
+
+     #
+     # installation and configuration
+     #
+
+     # packages allow package lists for the host OS's package manager
+     # to be embedded.
+
+     package* & 
+
+     # variables at this level are not path variables, rather config
+     # variables such as EDITOR, CFLAGS, and others.
+
+     variable* & 
+
+     # Filters record how to invoke a program to accomplish a
+     # particular task. The body of the element is the invocation, the
+     # description attribute documents the behavior, and the alias is
+     # a optional label to bind the invocation to via the shell's
+     # alias facility.
+
+     element filter {
+       attribute alias {text}?,
+       attribute description {text},
+       text
+     }* &
+
+     element install {
+       (text &
+        variable* &
+        dist?)
+     }? &
+     src? &
+
+     baseplate? # a baseplate element allows a config file to be installed, along
+                # with addendums distributed throughout the catalog.
+     ) 
+  }
+
+  #
+  # configuration
+  #
+
+  variable = element variable {
+    attribute name { text },
+    text
+  }
+
+  baseplate = element baseplate {
+    attribute ipath { text },
+    attribute bpath { text },
+    attribute addendum { text },
+    (
+      text &
+      element linkfrom {
+        attribute path { text } |
+	(attribute path { text },
+  	attribute stmt { text },
+	attribute ooline { text },
+	text)
+      }?
+    )
+  }
+
+  addendum = element addendum {
+    labeled,
+    attribute to { text },
+    attribute description { text },
+    attribute xml:space { "preserve" },
+    text    
+  }
+
+  #
+  # installation
+  #
+
+  package = element pkg {
+    attribute dist { text },
+    attribute group { "base" | "devel" },
+    text
+  }
+
+  dist = element dist {
+    attribute master { text },
+    (attribute cache { text },
+     attribute inst { text })?,
+   
+     text
+  }
+
+  #
+  # source code
+  #
+
+  src = element src {
+    attribute master {text}?,
+    attribute cache {text},
+    attribute src {text},
+    attribute version {text}?
+  }
+
+  periodicals = element periodicals {
+    document*
+  }
+
+  groups = element groups {
+    document*
+  }
+  
+  institutions = element institutions {
+    document*
+  }
+
+  url = element url {
+    attribute master { text },
+    element modified { text }?
+  }
+
+  snippet = element snippet {
+    labeled,
+    attribute description {text},
+    text
+  }
+
+  cached = (
+    attribute archive { text },
+    attribute expanded { text }
+  )?
+}

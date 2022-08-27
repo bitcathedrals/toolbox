@@ -1,0 +1,7 @@
+POSIX_EINTR="4";             # POSIX syscall error codes for linux
+POSIX_ESPIPE="29";
+POSIX_EBADF="9";
+
+function posix {
+  [[ -o interactive ]] && print -u2 "Programmer's Toolbox POSIX module autoloaded";
+}

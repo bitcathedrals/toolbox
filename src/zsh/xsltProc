@@ -1,0 +1,160 @@
+#----------------------------------------------------------------------
+#                           xsltProc Module
+#
+# A module to insulate implementation details of XSLT processors. It
+# is reponsible for locating a known XSLT processor, creating a
+# coprocess using the coproc-em module, and shutting down when finished.
+#
+# The processor is modal, operating in either xhtml or text mode.
+#----------------------------------------------------------------------
+
+xsltProc_mode=""
+
+function xsltProc_start {
+
+  if (( $# < 1 )) ; then
+    [[ -o interactive ]] && {
+      cat 1>&2 <<EOF
+xsltProc_start: <extent path> [post-processing pipeline] [xml] [ns]
+
+start the best available XSLT processor in one of two modes, xhtml or
+text (the default). XHTML mode will post-process with a beautifier and
+checker when available. Text mode does not modify the output in any
+way. An optional post-processing pipeline can be added as a second
+arguement, and the third is the mode.
+
+The coproc-em module is used for I/O to the processor. Consult it's
+documentation for details.
+
+Once the post-processor has been started the <xsl:stylesheet> and
+<xsl:output> tags are written to the processor. xsltProc_close will
+write the closing of the stylesheet tag.
+
+ns allows alias and namespaces to be specified a line at a time on
+stdin to the function.
+EOF
+      exit ${no_ERR:-0}
+    }
+
+    print -u2 "xsltProc_start: insufficient arguements to start a processor"
+    return ${internal_ERR:-1}
+  fi
+
+  local extent="$1"; shift;         
+
+  [[ -e $extent ]] || {
+    print -u2 "tool external error: xsltProc_start bad input file \"$1\""
+    exit ${internal_ERR:-1};
+  }
+  
+  local pipeline="";
+  local xsltProc_mode="text"
+  local ns="no"
+
+  # finish the arguements by constructing the post-processing pipeline
+
+  while (( $# )) ; do
+    case $1 in
+    xml) xsltProc_mode="xml";;
+    ns) ns="yes";;
+    *) pipeline="$1";;
+    esac
+
+    shift;
+  done
+
+  # find a XSLT processor, each known processor is detected and
+  # configured when present. The processors associative array is keyed
+  # by the program that launches the processor, the value is the
+  # configuration of the processor.
+
+  typeset -A processors;
+
+  if which xsltproc >/dev/null 2>&1 ; then
+
+    # xsltproc is the processor from the GNOME project. Currently it
+    # is my preferred XML/XSLT toolset sporting good standards
+    # conformance and extremely active maintenance.
+
+    local debug=""; [[ "$arg_dbg" = "enabled" ]] && debug="-v";
+
+    # xsltproc seeks on STDIN, have to fallback on tmp file IPC
+    processors['xsltproc']="$debug --xinclude <IPC> $extent $pipeline"
+  fi
+
+  if which java >/dev/null 2>&1 ; then
+    # Apache's xalan via java.
+
+    local xalan_mode;
+    case $xsltProc_mode in
+    "text") xalan_mode="-TEXT";;
+    "xml") xalan_mode="-XML";;
+    esac
+
+    processors['java']="org.apache.xalan.xslt.Process $xalan_mode -XSL <IPC> -IN $extent $pipeline"
+  fi
+
+  # bail when there are no processors
+
+  if ! (( ${#processors} )) ; then
+    print -u2 "tool error: XSLT processor unavailable in PATH";
+    exit ${external_ERR:-1};
+  fi
+
+  [[ $arg_dbg = "enabled" ]] &&\
+  print -u2 "${#processors} XSLT processors available";
+
+  # hardcoded now, need a mechanism to select a preferred processor or
+  # fallback on what is available
+
+  coproc_open xsltproc "${processors['xsltproc']}";
+
+  coproc_write <<'EOF'
+<?xml version="1.0" encoding="US-ASCII"?>
+<!--
+StyleSheet: Generated from the xslt API
+Author: xslt API (Mike Mattie)
+-->
+<xsl:stylesheet version="1.0"
+                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+EOF
+
+  # I really prefer to do a read -t to check for input on stdin,
+  # however that is broken as of zsh 4.2.1, so I have to do this
+  # ugly work-around with a flag.
+
+  if [[ "$ns" = yes ]] ; then
+    local alias namespace
+    while read alias namespace ; do
+      [[ -z "$alias" || -z "$namespace" ]] && continue
+      print -u$fd_wd "xmlns:${alias}=\"${namespace}\""
+    done
+  fi
+
+  print -u$fd_wd '>'
+
+  return 0;
+}
+
+function xsltProc_flush {
+
+  # flush generated scripting to the XSLT processor. All IPC
+  # mechanisms should have processor output avaiable after this call.
+
+  print -u$fd_wd '</xsl:stylesheet>'
+  coproc_flush $fd_handle;
+
+  return 0;
+}
+
+function xsltProc_stop {
+
+  # close the processor freeing resources used.
+
+  coproc_close $fd_handle;
+  return 0;
+}
+
+function xsltProc {
+  [[ -o interactive ]] && print -u2 "Programmer's Toolbox XSLT processor module autoloaded";
+}

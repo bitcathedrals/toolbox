@@ -1,0 +1,46 @@
+grammar {
+  start = element profile {
+
+    # the GUID for profiles is the e-mail address, stored in the
+    # identity element
+
+    element identity { text },
+    element description { text },
+    element pubkey { text },
+    contact,
+    expertise*
+  }
+
+  contact = element contact {
+    element name {
+      element first { text },
+      element last { text }
+    },
+
+    element title { text },
+
+    element address {
+      attribute type { text },
+      text
+    }+
+  }
+
+  expertise = element expertise {
+    attribute category { text },
+
+    # one or more specifics refines a area of expertise with aspects
+    # of the work, or particular skills.
+
+    element specific { 
+      attribute insert { text }?,
+      attribute append { text }?,
+      text 
+    }+,
+
+    element focus { text },
+    element accomplishment { 
+      element overview { text },
+      element point { text}*
+    }+
+  }
+}

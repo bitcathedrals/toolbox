@@ -1,0 +1,646 @@
+#----------------------------------------------------------------------
+#                     XSLT meta
+#
+# A meta-programming library for XSLT code, featuring code generators
+# for a XSLT skeleton, intergration of a library of templates, a range
+# of generators for translating data-sets to various formats, a macro
+# facility, and heirarchal recursions.
+#
+#
+# xsltMeta_decl
+#
+# <template definitions>
+#
+# xsltMeta_stmt_open <root element>
+# 
+# <main body assuming a xpath context of 
+#  the root element of the document model>
+#
+# xsltMeta_stmt_close
+#----------------------------------------------------------------------
+
+#
+# XSLT skeleton
+#
+
+# layout the generated XSLT skeleton according to the sketch
+# below. The order must be respected with template definitions after
+# xsltMeta_decl and the body incorperated imbetween the xsltMeta_stmt
+# functions for the stylesheet to parse.
+
+
+# xsltMeta_decl: <text|xml>
+
+# Start the skeletion specying what kind of output, either "text" or
+# "xml". Definitions of templates should follow this function.
+
+function xsltMeta_decl {
+
+  print "<xsl:import href=\"$TOOLBOX/lib/xslt/xslt-lib.xsl\"/>";
+
+  print -n '<xsl:output method="'
+  case $1 in
+  text) print -n 'text"';;
+  xml) print -n 'xml" omit-xml-declaration="yes"';;
+  *)
+    cat 1>&2 <<EOF
+xsltMeta_decl: error - was expecting either "text" or "xml" as a
+parameter
+EOF
+   return ${external_ERR:-1}
+  ;;
+  esac
+
+  print '/>'
+  return 0;
+}
+
+# xsltMeta_stmt_open: <document root>
+
+# Invoke this function with the name of the document root element to
+# define the entry point for XSLT processing.
+
+function xsltMeta_stmt_open {
+
+  print "<xsl:template match=\"/${1}\">"
+  return 0;
+}
+
+# xsltMeta_stmt_close:
+
+# Closes the entry point for the stylesheet, and the stylesheet itself.
+
+function xsltMeta_stmt_close {
+
+  # A work-around for processors that do not emit newlines, causing a
+  # hang while reading input with line based functions
+
+  [[ xsltProc_mode != "text" ]] && cat <<'EOF'
+<xsl:text>
+</xsl:text>
+</xsl:template>
+EOF
+
+  return 0;
+}
+
+#
+# utility functions
+#
+
+# a mixed bag of handy generators
+
+# xsltMeta_fmt_english_list_seperator:
+
+# inserts seperators between items in a list english style. Only works
+# inside of a for-each loop.
+
+function xsltMeta_util_english_list_seperator {
+
+print '
+   <xsl:choose>
+     <xsl:when test="position() = last() and position() != 1">
+       <xsl:text>, and </xsl:text>
+     </xsl:when>
+     <xsl:when test="position() != 1">
+       <xsl:text>, </xsl:text>                    
+     </xsl:when>
+   </xsl:choose>
+'
+
+  return 0;
+}
+
+#
+# formatting generators
+#
+
+# format generators take a list of xpath expressions munging their
+# contents into a specific format. Generally if any of the listed
+# xpath expressions do not exist, nothing will be output. Producing
+# partial tables require an -any parameter, and will result in empty
+# feilds in the output.
+
+# xsltMeta_fmt_linerec: [-any]
+
+# write a parameter list of elements/attributes seperated by tabs,
+# with a trailing newline. This produces table output processable by
+# the unix toolset.
+
+function xsltMeta_fmt_linerec { # a list of xpaths relative to the
+                                # point in the document to output
+
+  local partial="no"
+  [[ $1 = "-any" ]] && {
+    partial="yes"
+    shift
+  }
+
+  [[ $partial = no ]] && xsltMeta_exists_open $*;
+
+  while [[ "$#" -gt 1 ]]
+  do
+    print -n '<xsl:call-template name="strip_hanging_ws">'
+    print -n "<xsl:with-param name=\"data\" select=\"$1\"/>"
+    print -n '</xsl:call-template>'
+    print -n "<xsl:text>\t</xsl:text>"
+    shift;
+  done
+
+  print -n '<xsl:call-template name="strip_hanging_ws">'
+  print -n "<xsl:with-param name=\"data\" select=\"$1\"/>"
+  print -n '</xsl:call-template>'
+  print "<xsl:text>\n</xsl:text>"
+
+  [[ $partial = no ]] && xsltMeta_exists_close;
+
+  return 0;
+}
+
+function xsltMeta_gen_html_rows {
+
+  local partial="no"
+  [[ $1 = "-any" ]] && {
+    partial="yes"
+    shift
+  }
+
+  local label=$1 ; shift
+
+  [[ $partial = no ]] && xsltMeta_exists_open $*;
+
+  print "<xsl:template name=\"fmt_html_row_${label}\">"
+
+  print '  <xsl:param name="index" select="1"/>'
+
+  print -n '  <xsl:if test="'
+
+  local i n=$#
+  for (( i=1 ; i <= n; ++i )) ; do
+    (( i > 1 )) && print -n ' or '
+    print -n "${(P)i}[\$index]"
+  done
+  print '">
+  <tr>
+'
+  for (( i=1 ; i <= n ; ++i )) ; do
+    print '<xsl:choose>'
+    print "    <xsl:when test=\"${(P)i}[\$index]\">"
+    print "    <td><xsl:value-of select=\"${(P)i}[\$index]\"/></td>"
+    print '    </xsl:when>'
+    print '  <xsl:otherwise>'
+    print '  <td/>'
+    print '  </xsl:otherwise>'
+    print '</xsl:choose>'
+  done
+
+  print '
+  </tr>
+'
+  print "  <xsl:call-template name=\"fmt_html_row_${label}\">"
+  print '    <xsl:with-param name="index" select="$index + 1"/>
+  </xsl:call-template>
+  </xsl:if>
+</xsl:template>
+'
+  [[ $partial = no ]] && xsltMeta_exists_close;
+
+  return 0;
+}
+
+function xsltMeta_fmt_html_rows {
+  print "<xsl:call-template name=\"fmt_html_row_${1}\"/>"
+  return 0;
+}
+
+#
+# xsltMeta_macro
+#
+
+function xsltMeta_macro_define {
+
+  (( ${+1} )) || {
+    print -u2 "xsltMeta_macro_define: Error - missing required label arguement"
+    return ${internal_ERR:-1}
+  }
+
+  local data line=1
+  mode=$xsltMeta_macro_unset
+
+  while read data ; do
+    case "$data" in
+    ENTRY) 
+      if [[ $mode != $xsltMeta_macro_unset ]] ; then
+        cat 1>&2 <<EOF
+xsltMeta_macro_define: error line [$line], mode was not set
+before starting the template code
+EOF
+       
+	return ${external_ERR:-1}
+      fi
+
+      mode=$xsltMeta_macro_entry
+    ;;
+    EXIT)
+      if [[ $mode != $xsltMeta_macro_entry ]] ; then
+	cat 1>&2 <<EOF
+xsltMeta_macro_define: error line [$line], expecting EXIT
+statement after a ENTRY statement.
+EOF
+	return ${external_ERR:-1}
+      fi    
+
+      mode=$xsltMeta_macro_exit
+    ;;
+    *)
+      if [[ $mode = $xsltMeta_macro_unset ]] ; then
+        cat 1>&2 <<EOF
+xsltMeta_macro: error line [$line], was expecting ENTRY
+before any code was specified.
+EOF
+      fi
+
+      xsltMeta_macro_table[${1}_$mode]="$xsltMeta_macro_table[${1}_$mode]$data"$'\n'
+    ;;
+    esac
+
+    line=$(( line + 1 ))
+  done
+
+  return 0;
+} 
+
+function xsltMeta_macro_exp {
+  local data
+
+  (( ${+1} )) || {
+    print -u2 "xsltMeta_macro_exp: error - missing the label of the macro to expand"
+    return ${internal_ERR:-1}
+  }
+
+  (( ${+xsltMeta_macro_table[$1_${xsltMeta_macro_entry}]} )) || {
+    print -u2 "xsltMeta_macro_exp: error - label \"$1\" has not been defined"
+    return ${internal_ERR:-1}
+  }
+
+  print - $xsltMeta_macro_table[$1_${xsltMeta_macro_entry}];
+
+  while read data ; do
+    print - "$data"
+  done
+
+  print - $xsltMeta_macro_table[$1_${xsltMeta_macro_exit}];
+
+  return 0;
+}
+
+#
+# xsltMeta tree
+#
+
+# The reason xsltMeta_tree has copies of the macro code instead of
+# just calling it is because the tree code may be reset, and used on
+# several different trees without wiping out the macros. This
+# seperation is a much better interface.
+
+# xsltMeta_tree: <node element>
+#
+# documented inline.
+
+function xsltMeta_tree {
+
+  if ! (( ${+1} )) ; then
+    [[ -o interactive ]] && {
+      cat 1>&2 <<EOF
+xsltMeta_tree: <node element>
+
+Configure the tree code generator for a particular document model.
+Specify the "node element", the element that nests itself to define
+the hierarchy.
+EOF
+      return 0;
+    }
+
+    return ${external_ERR:-1}
+  fi
+
+  xsltMeta_tree="$1"
+
+  # clear the symbol table
+
+  (( ${+xsltMeta_tree_rtable} )) && unset xsltMeta_tree_rtable;
+  (( ${+xsltMeta_tree_atable} )) && unset xsltMeta_tree_atable;
+ 
+  typeset -gA xsltMeta_tree_rtable
+  typeset -gA xsltMeta_tree_atable
+
+  return 0;
+}
+
+function xsltMeta_tree_add {
+  if ! (( ${+1} )); then
+    [[ -o interactive ]] && {
+      cat 1>&2 <<EOF
+xsltMeta_tree_add: <action|recurse> <label>
+
+xsltMeta_tree_add tailors the recursion function generator in one of
+two aspects: action, or recurse. Action refers to the code that
+processes whatever is inside of the node, excepting of course the node
+elements themselves which the function recurses through. Recurse
+refers to the recursion code itself.
+
+The second arguement is the label. The value default is treated
+specially, the ENTRY and EXIT code is expanded by the recursion
+generator without a request for the label. All other labels must be
+explicitly requested.
+EOF
+      return 0;
+    }
+
+    return ${external_ERR:-1}
+  else
+    case "$1" in 
+    action);;
+    recurse);;
+    *)
+      cat 1>&2 <<EOF
+xsltMeta_tree_add: was expecting the first arguement to be either
+"action"|"recurse"
+EOF
+      return ${external_ERR:-1}
+    ;;
+    esac
+  fi
+
+  if ! (( ${+2} )); then
+    [[ -o interactive ]] && {
+      cat 1>&2 <<EOF
+xsltMeta_tree_add: error - was expecting a second
+arguement with a label for the customization.
+EOF
+      return 0;
+    }
+
+    return ${external_ERR:-1}
+  fi
+
+  local data line=1
+  mode=$xsltMeta_tree_unset
+
+  while read data ; do
+    case "$data" in
+    ENTRY) 
+      if [[ $mode != $xsltMeta_tree_unset ]] ; then
+        cat 1>&2 <<EOF
+xsltMeta_tree_add: error line [$line], mode was not set
+before starting the template code
+EOF
+       
+	return ${external_ERR:-1}
+      fi
+
+      mode=$xsltMeta_tree_entry
+    ;;
+    EXIT)
+      if [[ $mode != $xsltMeta_tree_entry ]] ; then
+	cat 1>&2 <<EOF
+xsltMeta_tree_add: error line [$line], expecting EXIT
+statement after a ENTRY statement.
+EOF
+	return ${external_ERR:-1}
+      fi    
+
+      mode=$xsltMeta_tree_exit
+    ;;
+    *)
+      if [[ $mode = $xsltMeta_tree_unset ]] ; then
+        cat 1>&2 <<EOF
+xsltMeta_tree_add: error line [$line], was expecting ENTRY
+before any code was specified.
+EOF
+      fi
+
+      case $1 in
+      action) xsltMeta_tree_atable[${2}_$mode]=\
+"$xsltMeta_tree_atable[${2}_$mode]$data"$'\n';;
+      recurse) xsltMeta_tree_rtable[${2}_$mode]=\
+"$xsltMeta_tree_rtable[${2}_$mode]$data"$'\n';;
+      esac  
+    ;;
+    esac
+
+    line=$(( line + 1 ))
+  done
+
+  return 0;
+}
+
+function xsltMeta_tree_depth_first {  # the identifier linking the functions
+                                      # for this recursion 
+
+  xsltMeta_disable_default_template "$xsltMeta_tree";
+
+  (( $# < 1 )) && {
+    [[ -o interactive ]] && {
+cat 1>&2 <<EOF
+xsltMeta_tree_depth_first: <traversal label> <customization labels>
+
+EOF
+      return 0;
+    }
+
+    return ${internal_ERR:-1}
+  }
+
+  local i data trav_id="$1"; shift;
+
+  # generate the top of a leaf traversal. When a leaf set is specified
+  # a modal match template linkage is used to call the closure created
+  # with the xsltLib_tree_open function.
+
+
+  print "<xsl:template match=\"${xsltMeta_tree}\" mode=\"${trav_id}\">"
+
+  (( ${+xsltMeta_tree_rtable[default_${xsltMeta_tree_entry}]} )) && \
+print - "$xsltMeta_tree_rtable[default_${xsltMeta_tree_entry}]";
+
+  for i in $@ ; do
+    (( ${+xsltMeta_tree_rtable[${i}_${xsltMeta_tree_entry}]} )) && \
+print - "$xsltMeta_tree_rtable[${i}_${xsltMeta_tree_entry}]"
+  done  
+
+  xsltMeta_tree_action_entry $*
+
+  while read data ; do
+    print - "$data"
+  done
+
+  xsltMeta_tree_action_exit $*
+
+  print "<xsl:apply-templates select=\"child::${xsltMeta_tree}\" mode=\"$trav_id\">"
+  i=$#
+  while (( i > 0 )) ; do
+    (( ${+xsltMeta_tree_rtable[${@[$i]}_${xsltMeta_tree_exit}]} )) && \
+print - "$xsltMeta_tree_rtable[${@[$i]}_${xsltMeta_tree_exit}]";
+    i=$(( i - 1 ))
+  done
+
+  (( ${+xsltMeta_tree_rtable[default_${xsltMeta_tree_exit}]} )) && \
+print - "$xsltMeta_tree_rtable[default_${xsltMeta_tree_exit}]";
+
+  print '</xsl:apply-templates>'
+  print '</xsl:template>'
+  return 0;
+}
+
+function xsltMeta_tree_iterate {
+  xsltMeta_disable_default_template "$xsltMeta_tree";
+
+  (( $# < 1 )) && {
+    [[ -o interactive ]] && {
+cat 1>&2 <<EOF
+xsltMeta_tree_iterate: <traversal label> <customization labels>
+
+EOF
+      return 0;
+    }
+
+    return ${internal_ERR:-1}
+  }
+
+  local data trav_id="$1"; shift;
+
+  # generate the top of a leaf traversal. When a leaf set is specified
+  # a modal match template linkage is used to call the closure created
+  # with the xsltLib_tree_open function.
+
+
+  print "<xsl:template match=\"${xsltMeta_tree}\" mode=\"${trav_id}\">"
+
+  xsltMeta_tree_action_entry $*
+
+  while read data ; do
+    print - "$data"
+  done
+
+  xsltMeta_tree_action_exit $*
+
+  print '</xsl:template>'
+  return 0;
+}
+
+#
+# utility functions for xsltMeta_tree
+#
+
+function xsltMeta_tree_action_entry {
+  (( ${+xsltMeta_tree_atable[default_${xsltMeta_tree_entry}]} )) && \
+print - "$xsltMeta_tree_atable[default_${xsltMeta_tree_entry}]";
+
+  for i in $@ ; do
+    (( ${+xsltMeta_tree_atable[${i}_${xsltMeta_tree_entry}]} )) && \
+print - "$xsltMeta_tree_atable[${i}_${xsltMeta_tree_entry}]"
+  done  
+
+  return 0;
+}
+
+function xsltMeta_tree_action_exit {
+  local i=$#
+  while (( i > 0 )) ; do
+    (( ${+xsltMeta_tree_atable[${@[$i]}_${xsltMeta_tree_exit}]} )) && \
+print - "$xsltMeta_tree_atable[${@[$i]}_${xsltMeta_tree_exit}]";
+    i=$(( i - 1 ))
+  done
+
+  (( ${+xsltMeta_tree_atable[default_${xsltMeta_tree_exit}]} )) && \
+print - "$xsltMeta_tree_atable[default_${xsltMeta_tree_exit}]";
+
+  return 0;
+}
+
+#
+# Infrastructure functions
+#
+
+function xsltMeta_unique { # a string
+
+  # xsltMeta_unique records all strings passed as the first parameter
+  # returning true for the first occurance of the string, and false
+  # for subsequent queries with the same string.
+
+  # This function is used to reduce multiple requests for a def/decl
+  # to a single emission of the def/decl.
+
+  (( ${+xsltMeta_unique[$1]} )) && return 1;
+
+  xsltMeta_unique[$1]="";
+  return 0;
+}
+
+function xsltMeta_disable_default_template { # the template match element
+
+  # disable the default template for an element by generating a NOP
+  # template
+
+  # XSLT defines a default template which is invoked when there is no
+  # other non-modal definition. I use all modals to simplify the code
+  # generation and this function keeps XSLT in check.
+
+  while (( $# )) ; do  
+    xsltMeta_unique $1 &&\
+    print "<xsl:template match=\"$1\"></xsl:template>";
+
+    shift;
+  done;
+}
+
+function xsltMeta_exists_open { # a list of xpaths
+
+  # test for existance of all the xpaths listed.
+
+  print -n '<xsl:if test="'
+
+  while (( $# > 1 )) ; do 
+    print -n "$1 and "; shift; 
+  done
+
+  print "$1\">"
+
+  return 0;
+} 
+
+function xsltMeta_exists_close { print '</xsl:if>'; } 
+
+#
+# initializer
+#
+
+function xsltMeta {
+  [[ -o interactive ]] && {
+    print -u2 "loaded The programmer's Toolbox xsltMeta module."
+  }
+
+  [[ $1 != "-init" ]] && return 0;
+
+  # reset the unique hash
+
+  (( ${+xsltMeta_unique} )) && unset xsltMeta_unique
+  typeset -gA xsltMeta_unique;
+
+  # label the magic numbers for the recursion customization mode.
+  xsltMeta_tree_unset=0
+  xsltMeta_tree_entry=1
+  xsltMeta_tree_exit=2
+
+  # label the magic numbers for the macro feature
+  xsltMeta_macro_unset=0
+  xsltMeta_macro_entry=1
+  xsltMeta_macro_exit=2
+
+  # reset the macro table
+  (( ${+xsltMeta_macro_table} )) && unset xsltMeta_macro_table;
+  typeset -gA xsltMeta_macro_table
+
+  return 0;
+}

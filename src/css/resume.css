@@ -1,0 +1,168 @@
+div.heading { 
+  margin-left: 1in;
+  margin-right: 1in;
+
+  margin-top: 1em;
+  margin-bottom: 1em;
+
+  font-size: 12pt;
+}
+
+div.heading span.title:before { 
+  display: marker;
+  content: " - "
+}
+
+div.heading div { 
+  text-align: center;
+  text-transform: capitalize;  
+}
+
+span.label:after { 
+  display: marker;
+  content: ": "
+}
+
+span.literal { 
+  text-transform: none;
+}
+
+/*  */
+
+p.focus { 
+  margin-left: .25in;
+  margin-right: .25in;
+
+  padding: .5em;
+
+  text-align: center;
+}
+
+div.expertise { 
+  background: rgb(148,163,163);
+  margin-left: .25in;
+  margin-right: .25in;
+  clear: both;
+
+  padding: .5em;
+}
+
+h1 { 
+  font-size: 14pt;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+h2 { 
+  padding-left: 1em;
+
+  padding-top: .25em;
+  padding-bottom: .25em;
+
+  text-transform: capitalize;
+
+  font-size: 12pt;
+  font-weight: bold;
+
+  background: rgb(71,108,156);
+  color: rgb(210,210,210);
+}
+
+span.description:before { 
+  display: marker;
+  content: " - ";
+}
+
+span.description { 
+  font-style: italic;
+  font-weight: normal;
+  text-transform: none;
+}
+
+span.name,
+span.title { 
+  font-size: 14pt;
+}
+
+pre { 
+  margin-left: 1in;
+  margin-right: 1in;
+}
+
+table caption { 
+  display: block;
+  font-weight: bold;
+  margin-top: 1em;
+}
+
+div.table_key { 
+  margin-top: 1em;
+  padding: .5em;
+
+  border: 1px solid grey;
+  font-size: 8pt;
+}
+
+div.table_key p { 
+  text-align: center;
+}
+
+div.table_key div.heading { 
+  margin: 2px;
+  padding: 4px;
+
+  text-align: center;
+
+  border: 1px solid grey;  
+  font-size: 10pt;
+}
+
+div.table_key div.row { 
+  display: table-row;
+}
+
+div.table_key div.key { 
+  display: table-cell;
+  padding-left: 4px;
+}
+
+div.table_key div.key div { 
+  font-size: 10pt;
+  text-decoration: underline;
+  text-align: center;
+}
+
+div.skills_table { 
+  margin-top: .5em;
+  border-collapse: collapse;
+}
+
+div.skills_table div.heading { 
+  text-align: center;
+  text-decoration: underline;
+  font-size: 12pt;  
+}
+
+div.skills_table div.row { 
+  display: table-row;
+  border-bottom: 1px solid grey;
+}
+
+div.skills_table div.heading_cell { 
+  display: table-cell;
+  text-align: center;
+
+  border: 1px solid grey;
+}
+
+div.skills_table div.cell { 
+  display: table-cell;
+  padding: .5em;
+}
+
+
+div.skills_table div.span_row { 
+  display: table-row;
+  text-align: center;
+  border: 1px solid grey;
+}

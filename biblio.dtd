@@ -1,0 +1,78 @@
+<!--
+biblio.dtd
+version: a written by: Mike Mattie
+
+A flexible bibliographic XML document model intergrated into the
+toolbox. This model describes documents with enouph meta-data to allow
+both formally and content checked MLA bibliographic citations to be
+generated, along with sophisticated toolbox presentation of online
+documents with: caching, outline indexing, and bookmarking.
+-->
+
+<!ELEMENT document (#PCDATA | url | publication | outline | bkmark)*>
+<!ATTLIST document
+name CDATA #REQUIRED
+
+archive CDATA #REQUIRED
+expanded CDATA #REQUIRED>
+
+
+<!--
+  MIG: the access child element will be optional during the
+       transition, and enforced once the link verification portition
+       of the migration is completed.
+-->
+
+<!ELEMENT url (author,title,modified?)>
+<!ATTLIST url 
+master CDATA #REQUIRED
+contact CDATA #IMPLIED>
+
+<!ELEMENT author (#PCDATA)>
+<!ELEMENT title (#PCDATA)>
+
+
+<!--
+  The modified element contains a timestamp for when the document
+  was last modified on the server.
+-->
+
+<!ELEMENT modified (#PCDATA)>
+
+<!--
+  MIG: published document entries, a new toolbox feature that will be
+       left dormant
+-->
+
+<!--
+  The element body should contain the title or imprint of the publisher, 
+  along with the appropriate dating.
+-->
+
+<!ELEMENT publication (#PCDATA)>
+<!ATTLIST publication
+  year   CDATA #REQUIRED
+  day    CDATA #IMPLIED
+  month  CDATA #IMPLIED>
+
+<!--
+  This attribute set deep-links into markup documents/trees.
+-->
+
+<!-- top: required to point at the document top -->
+<!-- toc: optional table of contents -->
+<!-- index: optional index -->
+<!-- bibliography: optional bibliography -->
+<!-- glossary: optional glossary -->
+
+<!ELEMENT outline EMPTY>
+<!ATTLIST outline
+  top CDATA #REQUIRED            
+  toc CDATA #IMPLIED
+  index CDATA #IMPLIED           
+  bibliography CDATA #IMPLIED    
+  glossary CDATA #IMPLIED>       
+
+<!-- bookmark, a comment with a optional uri link -->
+<!ELEMENT bkmark (#PCDATA)>
+<!ATTLIST bkmark ref CDATA #IMPLIED>
